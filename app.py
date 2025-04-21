@@ -1,32 +1,19 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-import subprocess
-import sys
+import os
+from whitehouse_feed import run_main
 
 app = Flask(__name__)
-CORS(app)  # 👈 this is the key line to allow cross-origin requests
+CORS(app)
 
-@app.route("/run-feed", methods=["POST"])
-def run_feed_script():
-    try:
-        venv_python = sys.executable
-        result = subprocess.run([venv_python, "whitehouse_feed.py"], capture_output=True, text=True)
-        return jsonify({
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
+@app.route('/')
+def home():
+    return "White House Feed Backend Running."
 
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+@app.route('/run-feed', methods=['GET', 'POST'])
+def run_feed():
+    run_main()
+    return jsonify({"status": "Feed generated successfully."})
 
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
-
+if __name__ == '__main__':
+    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
