@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 from whitehouse_feed import run_main
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="public")
 CORS(app)
 
 @app.route('/')
@@ -15,10 +15,12 @@ def run_feed():
     run_main()
     return jsonify({"status": "Feed generated successfully."})
 
-# ✅ Serve files from the public directory
-@app.route('/public/<path:filename>')
-def serve_public_file(filename):
-    return send_from_directory('public', filename)
+@app.route('/feed', methods=['GET'])
+def get_feed():
+    try:
+        return send_from_directory(app.static_folder, "summarized_feed.json")
+    except FileNotFoundError:
+        return jsonify({"error": "Feed file not found"}), 404
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
