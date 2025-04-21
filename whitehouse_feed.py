@@ -1,3 +1,4 @@
+from pathlib import Path
 from dotenv import load_dotenv
 import os
 import openai
@@ -86,7 +87,7 @@ Only return valid JSON using this structure:
         return {"summary": "[ERROR] " + str(e)}
 
 # Load existing file or create empty list
-json_path = os.path.join(os.path.dirname(__file__), "summarized_feed.json")
+json_path = Path(os.path.join(os.path.dirname(__file__), "summarized_feed.json"))
 if json_path.exists():
     with open(json_path, "r", encoding="utf-8") as f:
         summarized_entries = json.load(f)
