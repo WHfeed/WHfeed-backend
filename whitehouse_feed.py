@@ -1,17 +1,14 @@
 from pathlib import Path
-from dotenv import load_dotenv
 import os
 import openai
 import feedparser
 import json
 from datetime import datetime
-from pathlib import Path
 
-# Load environment variables from .env file
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Use OpenAI key from environment
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
-# List of RSS feeds (Trump + Official White House News)
+# List of RSS feeds
 rss_feeds = [
     "https://trumpstruth.org/feed",
     "https://www.whitehouse.gov/news/feed"
@@ -19,7 +16,6 @@ rss_feeds = [
 
 print("Summarizing Latest Donald Trump Truth Social Posts...\n")
 
-# Analyze and score a post using GPT
 def analyze_post(text):
     try:
         response = openai.chat.completions.create(
@@ -86,62 +82,51 @@ Only return valid JSON using this structure:
     except Exception as e:
         return {"summary": "[ERROR] " + str(e)}
 
-# Load existing file or create empty list
-json_path = Path(os.path.join(os.path.dirname(__file__), "summarized_feed.json"))
-if json_path.exists():
-    with open(json_path, "r", encoding="utf-8") as f:
-        summarized_entries = json.load(f)
-else:
-    summarized_entries = []
-
-
-existing_links = {entry["link"] for entry in summarized_entries}
-
-# Process new posts from all RSS sources
-for url in rss_feeds:
-    feed = feedparser.parse(url)
-
-    for entry in feed.entries[:5]:
-        if entry.link in existing_links:
-            continue
-
-        print(f"📰 Source: {url}")
-        print(f"📢 Original Post: {entry.title}")
-        print(f"🔗 {entry.link}")
-        result = analyze_post(entry.title)
-
-        if "summary" not in result:
-            print("❌ Failed to process post.")
-            continue
-
-        print(f"🧠 Summary: {result['summary']}")
-        print(f"🏷 Tags: {result.get('tags', [])}")
-        print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
-        print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
-        print("-" * 60)
-
-        summarized_entries.append({
-            "title": entry.title,
-            "link": entry.link,
-            "published": entry.published if "published" in entry else None,
-            "summary": result.get("summary", ""),
-            "tags": result.get("tags", []),
-            "sentiment": result.get("sentiment", "Unknown"),
-            "impact": result.get("impact", {}),
-            "timestamp": datetime.now().isoformat()
-        })
-
-
-
-# Save updated list
-with open(json_path, "w", encoding="utf-8") as f:
-    json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
-
 def run_main():
-    # Save updated list
+    json_path = Path("public/summarized_feed.json")
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            summarized_entries = json.load(f)
+    else:
+        summarized_entries = []
+
+    existing_links = {entry["link"] for entry in summarized_entries}
+
+    for url in rss_feeds:
+        feed = feedparser.parse(url)
+
+        for entry in feed.entries[:5]:
+            if entry.link in existing_links:
+                continue
+
+            print(f"📰 Source: {url}")
+            print(f"📢 Original Post: {entry.title}")
+            print(f"🔗 {entry.link}")
+            result = analyze_post(entry.title)
+
+            if "summary" not in result:
+                print("❌ Failed to process post.")
+                continue
+
+            print(f"🧠 Summary: {result['summary']}")
+            print(f"🏷 Tags: {result.get('tags', [])}")
+            print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
+            print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
+            print("-" * 60)
+
+            summarized_entries.append({
+                "title": entry.title,
+                "link": entry.link,
+                "published": entry.published if "published" in entry else None,
+                "summary": result.get("summary", ""),
+                "tags": result.get("tags", []),
+                "sentiment": result.get("sentiment", "Unknown"),
+                "impact": result.get("impact", {}),
+                "timestamp": datetime.now().isoformat()
+            })
+
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
 
-# Only call it directly if script is run, not on import
 if __name__ == "__main__":
     run_main()
