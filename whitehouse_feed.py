@@ -103,6 +103,11 @@ def run_main():
     for url, source in rss_feeds:
         try:
             feed = feedparser.parse(url)
+
+            if not feed.entries:
+                print(f"⚠️ No entries found for {source} at {url}")
+                continue
+
         except Exception as e:
             print(f"❌ Failed to parse feed from {url}: {e}")
             continue
@@ -144,6 +149,7 @@ def run_main():
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
+
 
 if __name__ == "__main__":
     run_main()
