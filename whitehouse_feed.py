@@ -12,10 +12,6 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
-    ("https://rsshub.moeyy.cn/twitter/user/elonmusk", "X - Elon Musk (via moeyy.cn)"),
-    ("https://rsshub.4everland.app/twitter/user/VP", "X - JD Vance (via 4everland)"),
-    ("https://rsshub.tamag.org/twitter/user/PressSec", "X - Press Secretary (via tamag.org)"),
-    ("https://rsshub.moeyy.cn/twitter/user/SecYellen", "X - Janet Yellen (via moeyy.cn)")
 ]
 
 print("Summarizing Latest Donald Trump Truth Social Posts...\n")
