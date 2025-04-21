@@ -8,10 +8,14 @@ from datetime import datetime
 # Use OpenAI key from environment
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-# List of RSS feeds
+# List of RSS feeds with platform labels
 rss_feeds = [
-    "https://trumpstruth.org/feed",
-    "https://www.whitehouse.gov/news/feed"
+    ("https://trumpstruth.org/feed", "Truth Social"),
+    ("https://www.whitehouse.gov/news/feed", "White House"),
+    ("https://nitter.net/VP/rss", "X - JD Vance"),
+    ("https://nitter.net/elonmusk/rss", "X - Elon Musk"),
+    ("https://nitter.net/PressSec/rss", "X - Press Secretary"),
+    ("https://nitter.net/SecYellen/rss", "X - Janet Yellen")
 ]
 
 print("Summarizing Latest Donald Trump Truth Social Posts...\n")
@@ -96,14 +100,18 @@ def run_main():
 
     existing_links = {entry["link"] for entry in summarized_entries}
 
-    for url in rss_feeds:
+    for url, source in rss_feeds:
         feed = feedparser.parse(url)
 
         for entry in feed.entries[:5]:
             if entry.link in existing_links:
                 continue
 
-            print(f"📰 Source: {url}")
+            if hasattr(entry, "media_content") or "video" in entry.title.lower():
+                print(f"⚠️ Skipping media post: {entry.title}")
+                continue
+
+            print(f"📰 Source: {source}")
             print(f"📢 Original Post: {entry.title}")
             print(f"🔗 {entry.link}")
             result = analyze_post(entry.title)
@@ -126,6 +134,7 @@ def run_main():
                 "tags": result.get("tags", []),
                 "sentiment": result.get("sentiment", "Unknown"),
                 "impact": result.get("impact", {}),
+                "source": source,
                 "timestamp": datetime.now().isoformat()
             })
 
