@@ -101,7 +101,11 @@ def run_main():
     existing_links = {entry["link"] for entry in summarized_entries}
 
     for url, source in rss_feeds:
-        feed = feedparser.parse(url)
+        try:
+            feed = feedparser.parse(url)
+        except Exception as e:
+            print(f"❌ Failed to parse feed from {url}: {e}")
+            continue
 
         for entry in feed.entries[:5]:
             if entry.link in existing_links:
