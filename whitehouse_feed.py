@@ -84,6 +84,10 @@ Only return valid JSON using this structure:
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
+
+    # ✅ Ensure public/ directory exists
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+
     if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             summarized_entries = json.load(f)
