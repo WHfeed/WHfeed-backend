@@ -8,14 +8,14 @@ from datetime import datetime
 # Use OpenAI key from environment
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-# List of RSS feeds with platform labels
+# List of RSS feeds with platform labels (TEMP test setup)
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
-    ("https://rsshub.app/twitter/user/VP", "X - JD Vance"),
-    ("https://rsshub.app/twitter/user/elonmusk", "X - Elon Musk"),
-    ("https://rsshub.app/twitter/user/PressSec", "X - Press Secretary"),
-    ("https://rsshub.app/twitter/user/SecYellen", "X - Janet Yellen")
+    ("https://rsshub.moeyy.cn/twitter/user/elonmusk", "X - Elon Musk (via moeyy.cn)"),
+    ("https://rsshub.4everland.app/twitter/user/VP", "X - JD Vance (via 4everland)"),
+    ("https://rsshub.tamag.org/twitter/user/PressSec", "X - Press Secretary (via tamag.org)"),
+    ("https://rsshub.moeyy.cn/twitter/user/SecYellen", "X - Janet Yellen (via moeyy.cn)")
 ]
 
 print("Summarizing Latest Donald Trump Truth Social Posts...\n")
