@@ -83,8 +83,7 @@ Only return valid JSON using this structure:
         return {"summary": "[ERROR] " + str(e)}
 
 def run_main():
-    json_path = Path("public/summarized_feed.json")
-
+    json_path = Path(__file__).parent / "public" / "summarized_feed.json"
     # ✅ Ensure public/ directory exists
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
