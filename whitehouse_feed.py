@@ -137,3 +137,11 @@ for url in rss_feeds:
 with open(json_path, "w", encoding="utf-8") as f:
     json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
 
+def run_main():
+    # Save updated list
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
+
+# Only call it directly if script is run, not on import
+if __name__ == "__main__":
+    run_main()
