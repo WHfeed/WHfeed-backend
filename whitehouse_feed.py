@@ -7,7 +7,7 @@ import requests
 from datetime import datetime
 
 # Use OpenAI and TwitterAPI.io keys from environment
-openai.api_key = os.environ["OAI_KEY"]
+openai.api_key = os.environ["OPENAI_API_KEY"]
 TWITTER_API_KEY = os.environ.get("42be29e960b04eb3b9311e2eec443757")
 
 # List of RSS feeds with platform labels
