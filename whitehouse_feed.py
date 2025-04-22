@@ -3,18 +3,54 @@ import os
 import openai
 import feedparser
 import json
+import requests
 from datetime import datetime
 
-# Use OpenAI key from environment
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# Use OpenAI and TwitterAPI.io keys from environment
+openai.api_key = os.environ["OAI_KEY"]
+TWITTER_API_KEY = os.environ.get("42be29e960b04eb3b9311e2eec443757")
 
-# List of RSS feeds with platform labels (TEMP test setup)
+# List of RSS feeds with platform labels
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
 ]
 
-print("Summarizing Latest Donald Trump Truth Social Posts...\n")
+# Twitter accounts to fetch from
+twitter_accounts = [
+    ("JDVance1", "X - JD Vance"),
+    ("elonmusk", "X - Elon Musk"),
+    ("PressSec", "X - Press Secretary"),
+    ("SecYellen", "X - Janet Yellen")
+]
+
+print("Summarizing Latest White House Communications...\n")
+
+def fetch_tweets(username, count=5):
+    if not TWITTER_API_KEY:
+        print("❌ Twitter API key missing. Skipping X feeds.")
+        return []
+
+    headers = {"Authorization": f"Bearer {TWITTER_API_KEY}"}
+    url = f"https://api.twitterapi.io/v1/tweets?username={username}&limit={count}"
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            tweets = response.json().get("data", [])
+            return [
+                {
+                    "text": tweet["text"],
+                    "link": f"https://x.com/{username}/status/{tweet['id']}",
+                    "created_at": tweet["created_at"]
+                }
+                for tweet in tweets
+            ]
+        else:
+            print(f"❌ Failed to fetch tweets for {username}: {response.status_code}")
+            return []
+    except Exception as e:
+        print(f"❌ Twitter fetch error for {username}: {e}")
+        return []
 
 def analyze_post(text):
     try:
@@ -84,8 +120,6 @@ Only return valid JSON using this structure:
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
-
-    # ✅ Ensure public/ directory exists
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
     if json_path.exists():
@@ -96,14 +130,13 @@ def run_main():
 
     existing_links = {entry["link"] for entry in summarized_entries}
 
+    # Process RSS feeds
     for url, source in rss_feeds:
         try:
             feed = feedparser.parse(url)
-
             if not feed.entries:
                 print(f"⚠️ No entries found for {source} at {url}")
                 continue
-
         except Exception as e:
             print(f"❌ Failed to parse feed from {url}: {e}")
             continue
@@ -111,7 +144,6 @@ def run_main():
         for entry in feed.entries[:5]:
             if entry.link in existing_links:
                 continue
-
             if hasattr(entry, "media_content") or "video" in entry.title.lower():
                 print(f"⚠️ Skipping media post: {entry.title}")
                 continue
@@ -120,7 +152,6 @@ def run_main():
             print(f"📢 Original Post: {entry.title}")
             print(f"🔗 {entry.link}")
             result = analyze_post(entry.title)
-
             if "summary" not in result:
                 print("❌ Failed to process post.")
                 continue
@@ -143,9 +174,41 @@ def run_main():
                 "timestamp": datetime.now().isoformat()
             })
 
+    # Process Twitter accounts
+    for username, source in twitter_accounts:
+        tweets = fetch_tweets(username)
+        for tweet in tweets:
+            if tweet["link"] in existing_links:
+                continue
+
+            print(f"📰 Source: {source}")
+            print(f"📢 Tweet: {tweet['text']}")
+            print(f"🔗 {tweet['link']}")
+            result = analyze_post(tweet["text"])
+            if "summary" not in result:
+                print("❌ Failed to process tweet.")
+                continue
+
+            print(f"🧠 Summary: {result['summary']}")
+            print(f"🏷 Tags: {result.get('tags', [])}")
+            print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
+            print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
+            print("-" * 60)
+
+            summarized_entries.append({
+                "title": tweet["text"][:60] + "...",
+                "link": tweet["link"],
+                "published": tweet["created_at"],
+                "summary": result.get("summary", ""),
+                "tags": result.get("tags", []),
+                "sentiment": result.get("sentiment", "Unknown"),
+                "impact": result.get("impact", {}),
+                "source": source,
+                "timestamp": datetime.now().isoformat()
+            })
+
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
-
 
 if __name__ == "__main__":
     run_main()
