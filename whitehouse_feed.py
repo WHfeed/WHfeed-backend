@@ -32,17 +32,17 @@ def fetch_tweets(username, count=5):
         return []
 
     url = f"https://api.twitterapi.io/twitter/user/last_tweets?userName={username}&limit={count}"
-headers = {"x-api-key": TWITTER_API_KEY}
+    headers = {"x-api-key": TWITTER_API_KEY}
 
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            tweets = response.json().get("data", [])
+            tweets = response.json().get("tweets", [])
             return [
                 {
                     "text": tweet["text"],
-                    "link": f"https://x.com/{username}/status/{tweet['id']}",
-                    "created_at": tweet["created_at"]
+                    "link": tweet["url"],
+                    "created_at": tweet["createdAt"]
                 }
                 for tweet in tweets
             ]
