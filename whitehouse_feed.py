@@ -19,6 +19,7 @@ rss_feeds = [
 # Twitter accounts to fetch from
 twitter_accounts = [
     ("JDVance1", "X - JD Vance"),
+    ("POTUS", "X - POTUS"),
     ("elonmusk", "X - Elon Musk"),
     ("PressSec", "X - Press Secretary"),
     ("SecYellen", "X - Janet Yellen")
