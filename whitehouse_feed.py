@@ -177,7 +177,10 @@ def run_main():
 
     # Process Twitter accounts
     for username, source in twitter_accounts:
-        tweets = fetch_tweets(username)
+    print(f"📡 Fetching tweets from: {username}")
+    tweets = fetch_tweets(username)
+    print(f"📄 Found {len(tweets)} tweets from {username}")
+
         for tweet in tweets:
             if tweet["link"] in existing_links:
                 continue
