@@ -1,5 +1,8 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import openai
 import feedparser
 import json
@@ -18,7 +21,7 @@ rss_feeds = [
 
 # Twitter accounts to fetch from
 twitter_accounts = [
-    ("JDVance1", "X - JD Vance"),
+    ("JDVance", "X - JD Vance"),
     ("POTUS", "X - POTUS"),
     ("elonmusk", "X - Elon Musk"),
     ("PressSec", "X - Press Secretary"),
@@ -38,7 +41,12 @@ def fetch_tweets(username, count=5):
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            tweets = response.json().get("tweets", [])
+            data = response.json().get("data")
+            if not data or "tweets" not in data:
+                print(f"❌ No tweet data available for {username}. Raw response: {response.text}")
+                return []
+
+            tweets = data.get("tweets", [])
             return [
                 {
                     "text": tweet["text"],
@@ -176,10 +184,10 @@ def run_main():
                 "timestamp": datetime.now().isoformat()
             })
 
-        # Process Twitter accounts
+    # Process Twitter accounts
     for username, source in twitter_accounts:
         print(f"📡 Fetching tweets from: {username}")
-        tweets = fetch_tweets(username)
+        tweets = fetch_tweets(username)[:2]
         print(f"📄 Found {len(tweets)} tweets from {username}")
 
         for tweet in tweets:
