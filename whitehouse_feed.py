@@ -175,42 +175,41 @@ def run_main():
                 "timestamp": datetime.now().isoformat()
             })
 
-    # Process Twitter accounts
-    # Process Twitter accounts
-for username, source in twitter_accounts:
-    print(f"📡 Fetching tweets from: {username}")
-    tweets = fetch_tweets(username)
-    print(f"📄 Found {len(tweets)} tweets from {username}")
+        # Process Twitter accounts
+    for username, source in twitter_accounts:
+        print(f"📡 Fetching tweets from: {username}")
+        tweets = fetch_tweets(username)
+        print(f"📄 Found {len(tweets)} tweets from {username}")
 
-    for tweet in tweets:
-        if tweet["link"] in existing_links:
-            continue
+        for tweet in tweets:
+            if tweet["link"] in existing_links:
+                continue
 
-        print(f"📰 Source: {source}")
-        print(f"📢 Tweet: {tweet['text']}")
-        print(f"🔗 {tweet['link']}")
-        result = analyze_post(tweet["text"])
-        if "summary" not in result:
-            print("❌ Failed to process tweet.")
-            continue
+            print(f"📰 Source: {source}")
+            print(f"📢 Tweet: {tweet['text']}")
+            print(f"🔗 {tweet['link']}")
+            result = analyze_post(tweet["text"])
+            if "summary" not in result:
+                print("❌ Failed to process tweet.")
+                continue
 
-        print(f"🧠 Summary: {result['summary']}")
-        print(f"🏷 Tags: {result.get('tags', [])}")
-        print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
-        print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
-        print("-" * 60)
+            print(f"🧠 Summary: {result['summary']}")
+            print(f"🏷 Tags: {result.get('tags', [])}")
+            print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
+            print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
+            print("-" * 60)
 
-        summarized_entries.append({
-            "title": tweet["text"][:60] + "...",
-            "link": tweet["link"],
-            "published": tweet["created_at"],
-            "summary": result.get("summary", ""),
-            "tags": result.get("tags", []),
-            "sentiment": result.get("sentiment", "Unknown"),
-            "impact": result.get("impact", {}),
-            "source": source,
-            "timestamp": datetime.now().isoformat()
-        })
+            summarized_entries.append({
+                "title": tweet["text"][:60] + "...",
+                "link": tweet["link"],
+                "published": tweet["created_at"],
+                "summary": result.get("summary", ""),
+                "tags": result.get("tags", []),
+                "sentiment": result.get("sentiment", "Unknown"),
+                "impact": result.get("impact", {}),
+                "source": source,
+                "timestamp": datetime.now().isoformat()
+            })
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
