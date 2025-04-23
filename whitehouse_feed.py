@@ -31,8 +31,9 @@ def fetch_tweets(username, count=5):
         print("❌ Twitter API key missing. Skipping X feeds.")
         return []
 
-    headers = {"Authorization": f"Bearer {TWITTER_API_KEY}"}
-    url = f"https://api.twitterapi.io/v1/tweets?username={username}&limit={count}"
+    url = f"https://api.twitterapi.io/twitter/user/last_tweets?userName={username}&limit={count}"
+headers = {"x-api-key": TWITTER_API_KEY}
+
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
