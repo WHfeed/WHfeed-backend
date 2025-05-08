@@ -2561,5 +2561,184 @@
         },
         "source": "White House",
         "timestamp": "2025-05-07T12:31:44.769279"
+    },
+    {
+        "title": "Congratulations to Cardinal Robert Francis Prevost, who was just named Pope. It is such an honor to realize that he is the first American Pope. What excitement, and what a Great Honor for our Country. I look forward to meeting Pope Leo XIV. It will be a very meaningful moment!",
+        "link": "https://trumpstruth.org/statuses/30989",
+        "published": "Thu, 08 May 2025 17:25:58 +0000",
+        "summary": "Trump congratulates Cardinal Robert Francis Prevost on becoming the first American Pope, expressing excitement and calling it a great honor for the country. He looks forward to meeting Pope Leo XIV.",
+        "tags": [
+            "Foreign Policy",
+            "Religion",
+            "Global Relations"
+        ],
+        "sentiment": "Bullish",
+        "impact": {
+            "stock_market": 0,
+            "stock_sentiment": "Neutral",
+            "bond_market": 0,
+            "bond_sentiment": "Neutral",
+            "currency": 0,
+            "immigration_policy": 0,
+            "global_relations": 4,
+            "law_enforcement": 0
+        },
+        "source": "Truth Social",
+        "timestamp": "2025-05-08T12:31:32.714146"
+    },
+    {
+        "title": "[No Title] - Post from May 8, 2025",
+        "link": "https://trumpstruth.org/statuses/30988",
+        "published": "Thu, 08 May 2025 15:33:14 +0000",
+        "summary": "No specific information provided in the post.",
+        "tags": [],
+        "sentiment": "Neutral",
+        "impact": {
+            "stock_market": 0,
+            "stock_sentiment": "Neutral",
+            "bond_market": 0,
+            "bond_sentiment": "Neutral",
+            "currency": 0,
+            "immigration_policy": 0,
+            "global_relations": 0,
+            "law_enforcement": 0
+        },
+        "source": "Truth Social",
+        "timestamp": "2025-05-08T12:31:33.873816"
+    },
+    {
+        "title": "[No Title] - Post from May 8, 2025",
+        "link": "https://trumpstruth.org/statuses/30987",
+        "published": "Thu, 08 May 2025 15:19:11 +0000",
+        "summary": "No specific information provided in the post.",
+        "tags": [],
+        "sentiment": "Neutral",
+        "impact": {
+            "stock_market": 0,
+            "stock_sentiment": "Neutral",
+            "bond_market": 0,
+            "bond_sentiment": "Neutral",
+            "currency": 0,
+            "immigration_policy": 0,
+            "global_relations": 0,
+            "law_enforcement": 0
+        },
+        "source": "Truth Social",
+        "timestamp": "2025-05-08T12:31:34.809279"
+    },
+    {
+        "title": "[No Title] - Post from May 8, 2025",
+        "link": "https://trumpstruth.org/statuses/30986",
+        "published": "Thu, 08 May 2025 15:02:12 +0000",
+        "summary": "No specific information provided in the post.",
+        "tags": [],
+        "sentiment": "Neutral",
+        "impact": {
+            "stock_market": 0,
+            "stock_sentiment": "Neutral",
+            "bond_market": 0,
+            "bond_sentiment": "Neutral",
+            "currency": 0,
+            "immigration_policy": 0,
+            "global_relations": 0,
+            "law_enforcement": 0
+        },
+        "source": "Truth Social",
+        "timestamp": "2025-05-08T12:31:35.955216"
+    },
+    {
+        "title": "Today is an incredible day for America as we deliver our first Fair, Open, and Reciprocal Trade Deal — Something our past Presidents never cared about. Together with our strong Ally, the United Kingdom, we have reached the first, historic Trade Deal since Liberation Day. As part of this Deal, America will raise $6 BILLION DOLLARS in External Revenue from 10% Tariffs, $5 BILLION DOLLARS in new Export Opportunities for our Great Ranchers, Farmers, and Producers, and enhance the National Security of both the U.S. and the UK through the creation of an Aluminum and Steel Trading Zone, and a secure Pharmaceutical Supply Chain. This Deal shows that if you respect America, and bring serious proposals to the table, America is OPEN FOR BUSINESS. Many more to come — STAY TUNED!",
+        "link": "https://trumpstruth.org/statuses/30985",
+        "published": "Thu, 08 May 2025 14:59:00 +0000",
+        "summary": "President Trump announces a historic trade deal with the United Kingdom, emphasizing fair and reciprocal trade, leading to revenue from tariffs, export opportunities, and enhanced national security.",
+        "tags": [
+            "Trade Deal",
+            "National Security",
+            "Economy"
+        ],
+        "sentiment": "Bullish",
+        "impact": {
+            "stock_market": 4,
+            "stock_sentiment": "Bullish",
+            "bond_market": 3,
+            "bond_sentiment": "Bullish",
+            "currency": 3,
+            "immigration_policy": 0,
+            "global_relations": 4,
+            "law_enforcement": 0
+        },
+        "source": "Truth Social",
+        "timestamp": "2025-05-08T12:31:37.346748"
+    },
+    {
+        "title": "Fact Sheet: U.S.-UK Reach Historic Trade Deal",
+        "link": "https://www.whitehouse.gov/fact-sheets/2025/05/fact-sheet-u-s-uk-reach-historic-trade-deal/",
+        "published": "Thu, 08 May 2025 15:37:27 +0000",
+        "summary": "The U.S. and UK have reached a historic trade deal.",
+        "tags": [
+            "Trade",
+            "Global Relations"
+        ],
+        "sentiment": "Bullish",
+        "impact": {
+            "stock_market": 4,
+            "stock_sentiment": "Bullish",
+            "bond_market": 3,
+            "bond_sentiment": "Bullish",
+            "currency": 3,
+            "immigration_policy": 0,
+            "global_relations": 5,
+            "law_enforcement": 0
+        },
+        "source": "White House",
+        "timestamp": "2025-05-08T12:31:39.457715"
+    },
+    {
+        "title": "President Trump is Bringing Drug Manufacturing Back",
+        "link": "https://www.whitehouse.gov/articles/2025/05/president-trump-is-bringing-drug-manufacturing-back/",
+        "published": "Thu, 08 May 2025 14:45:30 +0000",
+        "summary": "President Trump is bringing drug manufacturing back to the United States.",
+        "tags": [
+            "Healthcare",
+            "Manufacturing",
+            "Economy"
+        ],
+        "sentiment": "Bullish",
+        "impact": {
+            "stock_market": 3,
+            "stock_sentiment": "Bullish",
+            "bond_market": 2,
+            "bond_sentiment": "Neutral",
+            "currency": 2,
+            "immigration_policy": 0,
+            "global_relations": 3,
+            "law_enforcement": 0
+        },
+        "source": "White House",
+        "timestamp": "2025-05-08T12:31:40.652930"
+    },
+    {
+        "title": "First Lady Melania Trump’s Statement on the Presidential Proclamation Honoring National Foster Care Month",
+        "link": "https://www.whitehouse.gov/briefings-statements/2025/05/first-lady-melania-trumps-statement-on-the-presidential-proclamation-honoring-national-foster-care-month/",
+        "published": "Wed, 07 May 2025 22:41:32 +0000",
+        "summary": "First Lady Melania Trump issued a statement on the Presidential Proclamation honoring National Foster Care Month.",
+        "tags": [
+            "Social Issues",
+            "Family",
+            "Government"
+        ],
+        "sentiment": "Neutral",
+        "impact": {
+            "stock_market": 0,
+            "stock_sentiment": "Neutral",
+            "bond_market": 0,
+            "bond_sentiment": "Neutral",
+            "currency": 0,
+            "immigration_policy": 0,
+            "global_relations": 0,
+            "law_enforcement": 0
+        },
+        "source": "White House",
+        "timestamp": "2025-05-08T12:31:41.673306"
     }
 ]

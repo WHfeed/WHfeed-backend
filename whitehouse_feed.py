@@ -1,31 +1,29 @@
 from pathlib import Path
 import os
+import json
 from dotenv import load_dotenv
-load_dotenv()
-
 import openai
 import feedparser
-import json
 import requests
 from datetime import datetime
 
-# Use OpenAI and TwitterAPI.io keys from environment
+# Load environment variables
+load_dotenv()
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
 
-# List of RSS feeds with platform labels
+# Define RSS feeds and Twitter accounts
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
 ]
 
-# Twitter accounts to fetch from
 twitter_accounts = [
     ("JDVance", "X - JD Vance"),
     ("POTUS", "X - POTUS"),
     ("elonmusk", "X - Elon Musk"),
     ("PressSec", "X - Press Secretary"),
-    ("SecYellen", "X - Janet Yellen")
+    ("SecYellen", "X - Janet Yellen"),
 ]
 
 print("Summarizing Latest White House Communications...\n")
@@ -46,14 +44,13 @@ def fetch_tweets(username, count=5):
                 print(f"❌ No tweet data available for {username}. Raw response: {response.text}")
                 return []
 
-            tweets = data.get("tweets", [])
             return [
                 {
                     "text": tweet["text"],
                     "link": tweet["url"],
-                    "created_at": tweet["createdAt"]
+                    "created_at": tweet["createdAt"],
                 }
-                for tweet in tweets
+                for tweet in data.get("tweets", [])
             ]
         else:
             print(f"❌ Failed to fetch tweets for {username}: {response.status_code}")
@@ -69,37 +66,15 @@ def analyze_post(text):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a geopolitical and financial analyst. For each Trump post, return the following:
+                    "content": """You are a geopolitical and financial analyst. For each post, return:
 
 - A brief summary (1–2 sentences)
-- Tags (1–3 keywords like Immigration, Energy, Border, Foreign Policy, etc.)
-- A general sentiment rating: Bearish, Neutral, or Bullish
-- A JSON object with impact and directional sentiment ratings:
+- Tags (1–3 keywords like Immigration, Energy, Foreign Policy)
+- Sentiment rating (Bullish, Neutral, Bearish)
+- JSON impact ratings (0–5) for stock_market, bond_market, currency, immigration_policy, global_relations, law_enforcement
+- Stock and bond directional sentiment (Bullish, Neutral, Bearish)
 
-Impact scores use this scale:
-0 = No impact
-1 = Very low impact
-2 = Slight impact
-3 = Moderate impact
-4 = Strong impact
-5 = High / likely impact
-
-Return scores for:
-- stock_market (0–5)
-- bond_market (0–5)
-- currency (0–5)
-- immigration_policy (0–5)
-- global_relations (0–5)
-- law_enforcement (0–5)
-
-Also include:
-- stock_sentiment: Bullish / Bearish / Neutral (based on stock_market context)
-- bond_sentiment: Bullish / Bearish / Neutral (based on bond/treasury implications)
-
-If a category is not relevant to the post, assign it a score of 0.
-
-Only return valid JSON using this structure:
-
+Use this exact format:
 {
   "summary": "...",
   "tags": ["..."],
@@ -118,10 +93,10 @@ Only return valid JSON using this structure:
                 },
                 {
                     "role": "user",
-                    "content": f"Analyze the following post:\n\n{text}"
-                }
+                    "content": f"Analyze the following post:\n\n{text}",
+                },
             ],
-            temperature=0.3
+            temperature=0.3,
         )
         result = response.choices[0].message.content.strip()
         return json.loads(result)
@@ -161,19 +136,24 @@ def run_main():
             print(f"📰 Source: {source}")
             print(f"📢 Original Post: {entry.title}")
             print(f"🔗 {entry.link}")
+
             result = analyze_post(entry.title)
             if "summary" not in result:
                 print("❌ Failed to process post.")
                 continue
 
-            print(f"🧠 Summary: {result['summary']}")
-            print(f"🏷 Tags: {result.get('tags', [])}")
-            print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
-            print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
-            print("-" * 60)
+            # Clean title logic
+            clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() != "" else None
+            if not clean_title:
+                if len(result.get("summary", "")) < 10:
+                    print("⚠️ Skipping post due to empty title and weak summary.")
+                    continue
+                clean_title = result.get("summary", "")[:60] + "..."
+
+            print(f"✅ Final Title: {clean_title}")
 
             summarized_entries.append({
-                "title": entry.title,
+                "title": clean_title,
                 "link": entry.link,
                 "published": entry.published if "published" in entry else None,
                 "summary": result.get("summary", ""),
@@ -197,19 +177,27 @@ def run_main():
             print(f"📰 Source: {source}")
             print(f"📢 Tweet: {tweet['text']}")
             print(f"🔗 {tweet['link']}")
+
             result = analyze_post(tweet["text"])
             if "summary" not in result:
                 print("❌ Failed to process tweet.")
                 continue
 
-            print(f"🧠 Summary: {result['summary']}")
-            print(f"🏷 Tags: {result.get('tags', [])}")
-            print(f"📈 Sentiment: {result.get('sentiment', 'Unknown')}")
-            print(f"📊 Impact: {json.dumps(result.get('impact', {}), indent=2)}")
-            print("-" * 60)
+            # Clean title logic
+            clean_title = tweet["text"].strip()
+            if len(clean_title) > 80:
+                clean_title = clean_title[:80] + "..."
+
+            if not clean_title:
+                if len(result.get("summary", "")) < 10:
+                    print("⚠️ Skipping tweet due to empty text and weak summary.")
+                    continue
+                clean_title = result.get("summary", "")[:60] + "..."
+
+            print(f"✅ Final Title: {clean_title}")
 
             summarized_entries.append({
-                "title": tweet["text"][:60] + "...",
+                "title": clean_title,
                 "link": tweet["link"],
                 "published": tweet["created_at"],
                 "summary": result.get("summary", ""),
