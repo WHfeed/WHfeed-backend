@@ -187,7 +187,7 @@ def run_main():
     # Process Twitter accounts
     for username, source in twitter_accounts:
         print(f"📡 Fetching tweets from: {username}")
-        tweets = fetch_tweets(username)[:2]
+        tweets = fetch_tweets(username)[:1]
         print(f"📄 Found {len(tweets)} tweets from {username}")
 
         for tweet in tweets:
