@@ -103,6 +103,15 @@ Use this exact format:
     except Exception as e:
         return {"summary": "[ERROR] " + str(e)}
 
+def should_skip(summary_text):
+    skip_phrases = [
+        "no specific information provided",
+        "unknown",
+        "no content",
+        "",
+    ]
+    return summary_text.lower().strip() in skip_phrases
+
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,16 +147,13 @@ def run_main():
             print(f"🔗 {entry.link}")
 
             result = analyze_post(entry.title)
-            if "summary" not in result:
-                print("❌ Failed to process post.")
+            if "summary" not in result or should_skip(result.get("summary", "")):
+                print("❌ Skipping post due to weak/empty summary.")
                 continue
 
             # Clean title logic
             clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() != "" else None
             if not clean_title:
-                if len(result.get("summary", "")) < 10:
-                    print("⚠️ Skipping post due to empty title and weak summary.")
-                    continue
                 clean_title = result.get("summary", "")[:60] + "..."
 
             print(f"✅ Final Title: {clean_title}")
@@ -179,19 +185,15 @@ def run_main():
             print(f"🔗 {tweet['link']}")
 
             result = analyze_post(tweet["text"])
-            if "summary" not in result:
-                print("❌ Failed to process tweet.")
+            if "summary" not in result or should_skip(result.get("summary", "")):
+                print("❌ Skipping tweet due to weak/empty summary.")
                 continue
 
-            # Clean title logic
             clean_title = tweet["text"].strip()
             if len(clean_title) > 80:
                 clean_title = clean_title[:80] + "..."
 
             if not clean_title:
-                if len(result.get("summary", "")) < 10:
-                    print("⚠️ Skipping tweet due to empty text and weak summary.")
-                    continue
                 clean_title = result.get("summary", "")[:60] + "..."
 
             print(f"✅ Final Title: {clean_title}")
