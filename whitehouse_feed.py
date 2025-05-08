@@ -110,7 +110,15 @@ def should_skip(summary_text):
         "no content",
         "",
     ]
-    return summary_text.lower().strip() in skip_phrases
+    
+    # Normalize summary text for comparison
+    summary_text = summary_text.lower().strip()
+
+    # Skip if summary starts with [ERROR]
+    if summary_text.startswith("[error"):
+        return True
+
+    return summary_text in skip_phrases
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
