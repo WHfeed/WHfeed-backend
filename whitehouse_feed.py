@@ -66,30 +66,32 @@ def analyze_post(text):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a geopolitical and financial analyst. For each post, return:
+                    "content": """You are a geopolitical and financial analyst. You will analyze political and financial posts and return only the following fields in JSON format:
 
-- A brief summary (1–2 sentences)
-- Tags (1–3 keywords like Immigration, Energy, Foreign Policy)
-- Sentiment rating (Bullish, Neutral, Bearish)
-- JSON impact ratings (0–5) for stock_market, bond_market, currency, immigration_policy, global_relations, law_enforcement
-- Stock and bond directional sentiment (Bullish, Neutral, Bearish)
+- A short and punchy headline (maximum 8 words)
+- A concise summary (up to 6 sentences for shorter posts, up to 12 sentences if the post contains complex government information)
+- 1–3 highly relevant tags
+- A general sentiment rating: Bullish, Neutral, or Bearish (based on market relevance)
+- An overall impact rating (0–5), based on how much this post could affect markets or policy.
 
-Use this exact format:
+Impact scale:
+0 = No impact
+1 = Very low
+2 = Slight
+3 = Moderate
+4 = Strong
+5 = Very strong / market moving
+
+Output only valid JSON using this structure:
+
 {
+  "headline": "...",
   "summary": "...",
-  "tags": ["..."],
+  "tags": ["...", "..."],
   "sentiment": "...",
-  "impact": {
-    "stock_market": X,
-    "stock_sentiment": "...",
-    "bond_market": X,
-    "bond_sentiment": "...",
-    "currency": X,
-    "immigration_policy": X,
-    "global_relations": X,
-    "law_enforcement": X
-  }
-}"""
+  "impact": X
+}
+"""
                 },
                 {
                     "role": "user",
