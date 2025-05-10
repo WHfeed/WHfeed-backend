@@ -95,7 +95,6 @@ def should_skip(summary_text, original_text=""):
     ]
     summary_text = summary_text.lower().strip()
     original_text = original_text.lower().strip()
-
     return (
         summary_text.startswith("[error")
         or summary_text in skip_phrases
@@ -115,13 +114,14 @@ def run_main():
     existing_links = {entry["link"] for entry in summarized_entries}
 
     def process_entry(text, link, published, source):
+        # 🚫 Hard skip for problematic case
+        if source == "Truth Social" and "whitehouse.gov/articles/" in link:
+            print(f"💣 Skipping known bad link from Truth Social: {link}")
+            return
+
         raw_input = text.strip()
 
         if is_raw_link(raw_input) or is_short(raw_input):
-            if "whitehouse.gov/articles/" in link:
-                print(f"💣 Skipping known low-content WH article link: {link}")
-                return
-
             print(f"🔍 Detected short/link-only input: {raw_input}")
             html_text = fetch_page_text(link)
             if len(html_text.split()) < 10:
