@@ -130,7 +130,7 @@ def run_main():
             return
 
         clean_title = result.get("headline", "")[:60]
-        timestamp = datetime.now().isoformat()
+        timestamp = datetime.utcnow().isoformat() + "Z"
 
         print(f"✅ Final Title: {clean_title}")
 
