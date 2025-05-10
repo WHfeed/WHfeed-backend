@@ -26,8 +26,6 @@ twitter_accounts = [
     ("SecYellen", "X - Janet Yellen"),
 ]
 
-print("🔎 Summarizing latest White House communications...\n")
-
 def fetch_tweets(username, count=5):
     if not TWITTER_API_KEY:
         print("❌ Twitter API key missing. Skipping X feeds.")
@@ -35,12 +33,16 @@ def fetch_tweets(username, count=5):
     url = f"https://api.twitterapi.io/twitter/user/last_tweets?userName={username}&limit={count}"
     headers = {"x-api-key": TWITTER_API_KEY}
     try:
-        res = requests.get(url, headers=headers)
-        data = res.json().get("data", {}).get("tweets", []) if res.status_code == 200 else []
-        return [
-            {"text": t["text"], "link": t["url"], "created_at": t["createdAt"]}
-            for t in data if "text" in t and "url" in t
-        ]
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json().get("data", {}).get("tweets", [])
+            return [
+                {"text": tweet["text"], "link": tweet["url"], "created_at": tweet["createdAt"]}
+                for tweet in data
+            ]
+        else:
+            print(f"❌ Failed to fetch tweets for {username}: {response.status_code}")
+            return []
     except Exception as e:
         print(f"❌ Twitter fetch error for {username}: {e}")
         return []
@@ -52,16 +54,22 @@ def analyze_post(text):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a geopolitical and financial analyst. If the post contains no actual content or is just a link, return:
-{ "headline": "Skip", "summary": "no content", "tags": [], "sentiment": "Neutral", "impact": 0 }
+                    "content": """You are a geopolitical and financial analyst. Return only the following fields in JSON:
 
-Otherwise return:
+- headline (max 8 words)
+- summary (6–12 sentences depending on source)
+- 1–3 tags
+- sentiment: Bullish, Neutral, or Bearish
+- impact: number 0–5
+
+Use this format:
+
 {
-  "headline": "...",      # max 8 words
-  "summary": "...",       # 6–12 sentences
-  "tags": ["...", "..."],
-  "sentiment": "Bullish" | "Neutral" | "Bearish",
-  "impact": 0–5
+  "headline": "...",
+  "summary": "...",
+  "tags": ["..."],
+  "sentiment": "...",
+  "impact": X
 }
 """
                 },
@@ -71,95 +79,122 @@ Otherwise return:
         )
         return json.loads(response.choices[0].message.content.strip())
     except Exception as e:
+        print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
-def should_skip(summary, raw_text=""):
-    summary = summary.lower().strip()
-    raw_text = raw_text.lower().strip()
-    generic = [
-        "no content", "unknown", "", 
-        "no specific information", "insufficient information", 
-        "the post does not provide"
+def should_skip(summary_text, original_text=""):
+    skip_phrases = [
+        "no specific information provided",
+        "insufficient information provided for analysis",
+        "the post does not provide any specific information",
+        "the post does not provide any specific information or context to analyze",
+        "unknown", "no content", ""
     ]
-    if summary.startswith("[error") or summary in generic:
-        return True
-    return re.match(r"^https?://\S+$", summary) or re.match(r"^https?://\S+$", raw_text)
+    summary_text = summary_text.lower().strip()
+    original_text = original_text.lower().strip()
+
+    is_error = summary_text.startswith("[error")
+    is_raw_link = re.match(r"^https?://\S+$", summary_text) or re.match(r"^https?://\S+$", original_text)
+
+    return is_error or summary_text in skip_phrases or is_raw_link
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
+    if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             summarized_entries = json.load(f)
-    except:
+    else:
         summarized_entries = []
 
-    existing_links = {e["link"] for e in summarized_entries}
+    existing_links = {entry["link"] for entry in summarized_entries}
 
+    # --- Process RSS feeds ---
     for url, source in rss_feeds:
+        print(f"\n🌐 Processing feed: {source}")
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:
-                if entry.link in existing_links:
-                    continue
-
-                # Require actual content
-                raw_title = getattr(entry, "title", "").strip()
-                raw_body = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                if not raw_body or re.match(r"^https?://\S+$", raw_body):
-                    print(f"⚠️ Skipping empty or link-only body: {raw_title}")
-                    continue
-
-                # Skip media
-                link = entry.link.lower()
-                if any(x in raw_title.lower() for x in ["video", "watch", "live", "speech"]) or "/media/" in link or "/videos/" in link:
-                    print(f"⚠️ Skipping media post: {raw_title}")
-                    continue
-
-                result = analyze_post(raw_body)
-                summary = result.get("summary", "").strip()
-                if should_skip(summary, raw_body):
-                    print(f"❌ Skipping post: {raw_title}")
-                    continue
-
-                clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
-                    raw_title if raw_title else result.get("headline", "")[:60]
-                )
-
-                print(f"✅ Title: {clean_title}")
-                summarized_entries.append({
-                    "title": clean_title,
-                    "link": entry.link,
-                    "published": getattr(entry, "published", None),
-                    "summary": summary,
-                    "tags": result.get("tags", []),
-                    "sentiment": result.get("sentiment", "Unknown"),
-                    "impact": result.get("impact", 0),
-                    "source": source,
-                    "timestamp": datetime.now().isoformat()
-                })
+            if not feed.entries:
+                print(f"⚠️ No entries found.")
+                continue
         except Exception as e:
-            print(f"❌ RSS error: {e}")
+            print(f"❌ Failed to parse feed: {e}")
+            continue
 
+        for entry in feed.entries[:5]:
+            if entry.link in existing_links:
+                continue
+
+            raw_title = getattr(entry, "title", "").strip()
+            raw_body = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
+
+            if source != "White House" and re.match(r"^https?://\S+$", raw_body):
+                print(f"⚠️ Skipping link-only post: {raw_title}")
+                continue
+
+            post_link = entry.link.lower()
+            is_media = (
+                hasattr(entry, "media_content") or
+                any(word in raw_title.lower() for word in ["video", "speech", "watch", "live"]) or
+                any(seg in post_link for seg in ["/media/", "/videos/"])
+            )
+            if is_media:
+                print(f"⚠️ Skipping media post: {raw_title}")
+                continue
+
+            analyze_text = raw_body if source == "White House" else raw_title
+            result = analyze_post(analyze_text)
+            summary = result.get("summary", "").strip()
+
+            if should_skip(summary, analyze_text):
+                print(f"❌ Skipping post: {raw_title}")
+                continue
+
+            clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
+                raw_title if raw_title else result.get("headline", "")[:60]
+            )
+
+            print(f"✅ Final Title: {clean_title}")
+            summarized_entries.append({
+                "title": clean_title,
+                "link": entry.link,
+                "published": getattr(entry, "published", None),
+                "summary": summary,
+                "tags": result.get("tags", []),
+                "sentiment": result.get("sentiment", "Unknown"),
+                "impact": result.get("impact", 0),
+                "source": source,
+                "timestamp": datetime.now().isoformat()
+            })
+
+    # --- Process Tweets ---
     for username, source in twitter_accounts:
+        print(f"\n📡 Fetching tweets: {username}")
         tweets = fetch_tweets(username)[:1]
+        print(f"📄 {len(tweets)} tweets found.")
+
         for tweet in tweets:
             if tweet["link"] in existing_links:
                 continue
+
             text = tweet["text"].strip()
             if re.match(r"^https?://\S+$", text):
-                print(f"⚠️ Skipping link-only tweet: {text}")
+                print(f"⚠️ Skipping raw link tweet: {text}")
                 continue
 
             result = analyze_post(text)
             summary = result.get("summary", "").strip()
+
             if should_skip(summary, text):
                 print(f"❌ Skipping tweet: {text}")
                 continue
 
-            clean_title = text[:80] + "..." if len(text) > 80 else text
-            print(f"✅ Tweet Title: {clean_title}")
+            clean_title = text if len(text) <= 80 else text[:80] + "..."
+            if not clean_title:
+                clean_title = result.get("headline", "")[:60]
+
+            print(f"✅ Final Title: {clean_title}")
             summarized_entries.append({
                 "title": clean_title,
                 "link": tweet["link"],
@@ -172,6 +207,7 @@ def run_main():
                 "timestamp": datetime.now().isoformat()
             })
 
+    # Save
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
 
