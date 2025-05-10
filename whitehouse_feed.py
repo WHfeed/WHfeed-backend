@@ -44,7 +44,6 @@ def fetch_tweets(username, count=5):
             if not data or "tweets" not in data:
                 print(f"❌ No tweet data available for {username}. Raw response: {response.text}")
                 return []
-
             return [
                 {
                     "text": tweet["text"],
@@ -106,7 +105,7 @@ Output only valid JSON using this structure:
     except Exception as e:
         return {"summary": f"[ERROR] {e}"}
 
-def should_skip(summary_text):
+def should_skip(summary_text, original_text=""):
     skip_phrases = [
         "no specific information provided",
         "insufficient information provided for analysis",
@@ -116,15 +115,12 @@ def should_skip(summary_text):
     ]
 
     summary_text = summary_text.lower().strip()
+    original_text = original_text.lower().strip()
 
-    # Skip if error or vague
-    if summary_text.startswith("[error"):
-        return True
-    if summary_text in skip_phrases:
+    if summary_text.startswith("[error") or summary_text in skip_phrases:
         return True
 
-    # Skip if it's just a plain link
-    if re.match(r"^https?://\S+$", summary_text):
+    if re.match(r"^https?://\S+$", summary_text) or re.match(r"^https?://\S+$", original_text):
         return True
 
     return False
@@ -176,8 +172,8 @@ def run_main():
             result = analyze_post(entry.title)
             summary = result.get("summary", "").strip()
 
-            if should_skip(summary):
-                print("❌ Skipping post due to weak/empty summary.")
+            if should_skip(summary, entry.title):
+                print("❌ Skipping post due to weak/empty summary or raw link.")
                 continue
 
             clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
@@ -211,8 +207,8 @@ def run_main():
             result = analyze_post(tweet["text"])
             summary = result.get("summary", "").strip()
 
-            if should_skip(summary):
-                print("❌ Skipping tweet due to weak/empty summary.")
+            if should_skip(summary, tweet["text"]):
+                print("❌ Skipping tweet due to weak/empty summary or raw link.")
                 continue
 
             clean_title = tweet["text"].strip()
