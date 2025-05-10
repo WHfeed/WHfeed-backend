@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import openai
 import feedparser
 import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
 
 # Load environment variables
@@ -36,10 +37,7 @@ def fetch_tweets(username, count=5):
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             data = response.json().get("data", {}).get("tweets", [])
-            return [
-                {"text": tweet["text"], "link": tweet["url"], "created_at": tweet["createdAt"]}
-                for tweet in data
-            ]
+            return [{"text": t["text"], "link": t["url"], "created_at": t["createdAt"]} for t in data]
         else:
             print(f"❌ Failed to fetch tweets for {username}: {response.status_code}")
             return []
@@ -47,32 +45,30 @@ def fetch_tweets(username, count=5):
         print(f"❌ Twitter fetch error for {username}: {e}")
         return []
 
+def fetch_page_text(url):
+    try:
+        res = requests.get(url, timeout=5)
+        soup = BeautifulSoup(res.text, "html.parser")
+        paragraphs = soup.find_all("p")
+        full_text = " ".join(p.get_text(strip=True) for p in paragraphs)
+        return full_text.strip()
+    except Exception as e:
+        print(f"⚠️ Failed to fetch content from {url}: {e}")
+        return ""
+
 def analyze_post(text):
     try:
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {
-                    "role": "system",
-                    "content": """You are a geopolitical and financial analyst. Return only the following fields in JSON:
-
-- headline (max 8 words)
-- summary (6–12 sentences depending on source)
-- 1–3 tags
-- sentiment: Bullish, Neutral, or Bearish
-- impact: number 0–5
-
-Use this format:
-
+                {"role": "system", "content": """You are a geopolitical and financial analyst. Return only this JSON:
 {
   "headline": "...",
   "summary": "...",
   "tags": ["..."],
   "sentiment": "...",
   "impact": X
-}
-"""
-                },
+}""" },
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
@@ -108,22 +104,48 @@ def should_skip(summary_text, original_text=""):
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
+    summarized_entries = []
 
     if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             summarized_entries = json.load(f)
-    else:
-        summarized_entries = []
 
     existing_links = {entry["link"] for entry in summarized_entries}
 
+    def process_entry(text, link, published, source):
+        if is_raw_link(text) or is_short(text):
+            print(f"🔍 Raw link or short post detected. Attempting to fetch HTML: {link}")
+            html_text = fetch_page_text(link)
+            if len(html_text.split()) < 10:
+                print("🚫 Not enough real content found in HTML. Skipping.")
+                return
+            text = html_text
+
+        result = analyze_post(text)
+        summary = result.get("summary", "").strip()
+        if should_skip(summary, text):
+            print(f"❌ Skipping post: {text[:60]}...")
+            return
+
+        clean_title = result.get("headline", "")[:60]
+        print(f"✅ Final Title: {clean_title}")
+        summarized_entries.append({
+            "title": clean_title,
+            "link": link,
+            "published": published,
+            "summary": summary,
+            "tags": result.get("tags", []),
+            "sentiment": result.get("sentiment", "Unknown"),
+            "impact": result.get("impact", 0),
+            "source": source,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    # Process RSS feeds
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
             feed = feedparser.parse(url)
-            if not feed.entries:
-                print(f"⚠️ No entries found.")
-                continue
         except Exception as e:
             print(f"❌ Failed to parse feed: {e}")
             continue
@@ -131,60 +153,20 @@ def run_main():
         for entry in feed.entries[:5]:
             if entry.link in existing_links:
                 continue
+            title = getattr(entry, "title", "").strip()
+            body = getattr(entry, "summary", "") or getattr(entry, "description", "")
+            link = entry.link
+            published = getattr(entry, "published", None)
 
-            raw_title = getattr(entry, "title", "").strip()
-            raw_body = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
-            post_link = entry.link.lower()
+            process_entry(body if source == "White House" else title, link, published, source)
 
-            # Skip media
-            is_media = (
-                hasattr(entry, "media_content") or
-                any(word in raw_title.lower() for word in ["video", "speech", "watch", "live"]) or
-                any(seg in post_link for seg in ["/media/", "/videos/"])
-            )
-            if is_media:
-                print(f"⚠️ Skipping media post: {raw_title}")
+    # Process Tweets
+    for username, source in twitter_accounts:
+        tweets = fetch_tweets(username)
+        for tweet in tweets:
+            if tweet["link"] in existing_links:
                 continue
-
-            # If Truth Social and only link with no real body, try scraping the link
-            analyze_text = raw_body if source == "White House" else raw_title
-            if source == "Truth Social" and is_raw_link(analyze_text) and is_short(analyze_text):
-                try:
-                    print(f"🌐 Fetching content from: {post_link}")
-                    response = requests.get(post_link, timeout=5)
-                    paragraphs = re.findall(r"<p>(.*?)</p>", response.text, re.DOTALL)
-                    visible_text = " ".join(p.strip() for p in paragraphs if len(p.strip()) > 10)
-                    if len(visible_text.strip().split()) > 3:
-                        analyze_text = visible_text.strip()
-                        print("✅ Replaced analyze_text with fetched page content")
-                    else:
-                        print("⚠️ Page content too short or not useful")
-                except Exception as e:
-                    print(f"❌ Could not fetch page: {e}")
-
-            result = analyze_post(analyze_text)
-            summary = result.get("summary", "").strip()
-
-            if should_skip(summary, analyze_text):
-                print(f"❌ Skipping post: {raw_title}")
-                continue
-
-            clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
-                raw_title if raw_title else result.get("headline", "")[:60]
-            )
-
-            print(f"✅ Final Title: {clean_title}")
-            summarized_entries.append({
-                "title": clean_title,
-                "link": entry.link,
-                "published": getattr(entry, "published", None),
-                "summary": summary,
-                "tags": result.get("tags", []),
-                "sentiment": result.get("sentiment", "Unknown"),
-                "impact": result.get("impact", 0),
-                "source": source,
-                "timestamp": datetime.now().isoformat()
-            })
+            process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
