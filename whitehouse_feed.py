@@ -56,23 +56,11 @@ def fetch_page_text(url):
         return ""
 
 def is_useless_html(text):
-    """Check if content is just an image, placeholder, or non-informative."""
     if not text or text.strip() == "":
         return True
     text = text.lower().strip()
-
-    # Strip HTML, test for minimal content
     plain = BeautifulSoup(text, "html.parser").get_text(strip=True)
-    if not plain or len(plain.split()) < 5:
-        return True
-
-    # Typical fallback phrases
-    if "no specific information provided" in text:
-        return True
-    if "does not provide a specific title or content" in text:
-        return True
-
-    return False
+    return not plain or len(plain.split()) < 5
 
 def analyze_post(text):
     try:
@@ -103,6 +91,9 @@ def is_short(text):
     return len(text.strip().split()) <= 3
 
 def should_skip(summary_text, original_text=""):
+    summary_text = summary_text.lower().strip()
+    original_text = original_text.lower().strip()
+
     skip_phrases = [
         "no specific information provided",
         "insufficient information provided for analysis",
@@ -110,16 +101,18 @@ def should_skip(summary_text, original_text=""):
         "the post does not provide any specific information or context to analyze",
         "this post lacks context",
         "this update offers no insight",
+        "provides insights into the current geopolitical and financial landscape",
+        "geopolitical and financial analysis of post from",
         "unknown", "no content", ""
     ]
-    summary_text = summary_text.lower().strip()
-    original_text = original_text.lower().strip()
+
     return (
         summary_text.startswith("[error")
-        or summary_text in skip_phrases
+        or any(phrase in summary_text for phrase in skip_phrases)
         or is_raw_link(summary_text)
         or is_raw_link(original_text)
-        or "does not provide a specific title or content" in summary_text
+        or is_short(original_text)
+        or "[no title]" in original_text
     )
 
 def run_main():
@@ -137,21 +130,29 @@ def run_main():
             print(f"💣 BLOCKED: Skipping known bad link: {link}")
             return
 
+        print(f"\n=== PROCESSING: {link} ===")
+        print(f"Initial Text: {text[:300]}\n")
+
         raw_input = text.strip()
 
         if is_raw_link(raw_input) or is_short(raw_input) or is_useless_html(raw_input):
-            print(f"🔍 Weak input: {raw_input[:60]}...")
+            print(f"🔍 Weak or short input detected: {raw_input[:60]}")
             html_text = fetch_page_text(link)
+            print(f"📄 Fallback HTML content: {html_text[:300]}")
             if is_useless_html(html_text):
                 print("🚫 No usable fallback content. Skipping.")
                 return
             raw_input = html_text
 
+        print(f"\n--- FINAL INPUT TO GPT ---\n{raw_input[:500]}")
+
         result = analyze_post(raw_input)
         summary = result.get("summary", "").strip()
 
+        print(f"\n--- GPT SUMMARY ---\n{summary[:300]}")
+
         if should_skip(summary, raw_input):
-            print(f"❌ Skipping post after GPT analysis: {raw_input[:60]}...")
+            print("❌ Skipping post after GPT analysis.")
             return
 
         clean_title = result.get("headline", "")[:60]
@@ -177,6 +178,11 @@ def run_main():
             continue
 
         for entry in feed.entries[:5]:
+            print("\n=== RAW FEED ENTRY ===")
+            print(f"Title: {getattr(entry, 'title', '')}")
+            print(f"Summary: {getattr(entry, 'summary', '')}")
+            print(f"Link: {entry.link}")
+
             title = getattr(entry, "title", "").strip()
             body = getattr(entry, "summary", "") or getattr(entry, "description", "")
             link = entry.link
