@@ -24,13 +24,13 @@ def get_feed():
 
 @app.route('/reset-and-run-feed', methods=['POST'])
 def reset_and_run_feed():
-    # Check auth token from header
+    # 🔒 Check auth token from header
     token = request.headers.get("x-auth-token")
     if token != os.environ.get("RESET_TOKEN"):
         return jsonify({"error": "Unauthorized"}), 403
 
-    # Delete old feed file
-    json_path = os.path.join("public", "summarized_feed.json")
+    # 🧹 Delete old feed file
+    json_path = os.path.join(app.static_folder, "summarized_feed.json")
     try:
         if os.path.exists(json_path):
             os.remove(json_path)
@@ -38,7 +38,7 @@ def reset_and_run_feed():
     except Exception as e:
         return jsonify({"error": f"Failed to delete file: {e}"}), 500
 
-    # Regenerate feed
+    # 🔄 Regenerate new feed
     run_main()
     return jsonify({"status": "Feed reset and regenerated successfully."})
 
