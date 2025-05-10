@@ -55,6 +55,25 @@ def fetch_page_text(url):
         print(f"⚠️ Could not extract HTML content from {url}: {e}")
         return ""
 
+def is_useless_html(text):
+    """Check if content is just an image, placeholder, or non-informative."""
+    if not text or text.strip() == "":
+        return True
+    text = text.lower().strip()
+
+    # Strip HTML, test for minimal content
+    plain = BeautifulSoup(text, "html.parser").get_text(strip=True)
+    if not plain or len(plain.split()) < 5:
+        return True
+
+    # Typical fallback phrases
+    if "no specific information provided" in text:
+        return True
+    if "does not provide a specific title or content" in text:
+        return True
+
+    return False
+
 def analyze_post(text):
     try:
         response = openai.chat.completions.create(
@@ -100,18 +119,18 @@ def should_skip(summary_text, original_text=""):
         or summary_text in skip_phrases
         or is_raw_link(summary_text)
         or is_raw_link(original_text)
+        or "does not provide a specific title or content" in summary_text
     )
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # ⛔ Explicit blacklist
     blocked_links = {
         "https://trumpstruth.org/statuses/31027",
     }
 
-    summarized_entries = []  # 🔄 Always start fresh
+    summarized_entries = []
 
     def process_entry(text, link, published, source):
         if link in blocked_links:
@@ -120,22 +139,19 @@ def run_main():
 
         raw_input = text.strip()
 
-        if is_raw_link(raw_input) or is_short(raw_input):
-            if "whitehouse.gov/articles/" in link:
-                print(f"💣 Skipping known low-content WH article link: {link}")
-                return
-
-            print(f"🔍 Detected short/link-only input: {raw_input}")
+        if is_raw_link(raw_input) or is_short(raw_input) or is_useless_html(raw_input):
+            print(f"🔍 Weak input: {raw_input[:60]}...")
             html_text = fetch_page_text(link)
-            if len(html_text.split()) < 10:
-                print("🚫 Not enough fallback content from page. Skipping.")
+            if is_useless_html(html_text):
+                print("🚫 No usable fallback content. Skipping.")
                 return
             raw_input = html_text
 
         result = analyze_post(raw_input)
         summary = result.get("summary", "").strip()
+
         if should_skip(summary, raw_input):
-            print(f"❌ Skipping post: {raw_input[:60]}...")
+            print(f"❌ Skipping post after GPT analysis: {raw_input[:60]}...")
             return
 
         clean_title = result.get("headline", "")[:60]
@@ -152,7 +168,6 @@ def run_main():
             "timestamp": datetime.now().isoformat()
         })
 
-    # RSS FEEDS
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
@@ -169,7 +184,6 @@ def run_main():
 
             process_entry(body if source == "White House" else title, link, published, source)
 
-    # TWEETS
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
         for tweet in tweets:
