@@ -191,9 +191,10 @@ def run_main():
     recap = summarize_feed_for_recap(summarized_entries[:10])
     output = {
         "recap": recap,
-        "last_updated": datetime.utcnow().strftime("%-I:%M %p UTC"),
+        "recap_time": datetime.utcnow().strftime("%-I:%M %p UTC"),  # ✅ Change key name here
         "posts": summarized_entries
     }
+
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=4, ensure_ascii=False)
