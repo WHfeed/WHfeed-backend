@@ -68,12 +68,12 @@ def analyze_post(text):
             messages=[
                 {"role": "system", "content": """You are a geopolitical and financial analyst. Return only this JSON:
 {
-  "headline": "...",
-  "summary": "...",
-  "tags": ["..."],
-  "sentiment": "...",
-  "impact": X
-}""" },
+  \"headline\": \"(max 60 characters)\",
+  \"summary\": \"...\",
+  \"tags\": [\"...\"],
+  \"sentiment\": \"...\",
+  \"impact\": X
+}"""},
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
@@ -129,7 +129,7 @@ def run_main():
             print("❌ Skipping post due to GPT error.")
             return
 
-        clean_title = result.get("headline", "")[:60]
+        clean_title = result.get("headline", "")  # No longer truncated manually
         timestamp = datetime.utcnow().isoformat() + "Z"
 
         print(f"✅ Final Title: {clean_title}")
@@ -146,7 +146,6 @@ def run_main():
             "timestamp": timestamp,
             "display_time": timestamp  # now ISO format and safe for JS
         })
-
 
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
@@ -170,7 +169,6 @@ def run_main():
         for tweet in tweets:
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
-    # Sort newest captured posts first
     summarized_entries.sort(
         key=lambda x: x["timestamp"],
         reverse=True
