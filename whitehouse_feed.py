@@ -113,7 +113,6 @@ def should_skip(summary_text, original_text=""):
         "no content",
         "",
     ]
-
     summary_text = summary_text.lower().strip()
     original_text = original_text.lower().strip()
 
@@ -152,7 +151,12 @@ def run_main():
             if entry.link in existing_links:
                 continue
 
-            post_title = entry.title.lower() if hasattr(entry, "title") else ""
+            title_text = entry.title.strip() if hasattr(entry, "title") else ""
+            if re.match(r"^https?://\S+$", title_text):
+                print(f"⚠️ Skipping raw link-only post: {title_text}")
+                continue
+
+            post_title = title_text.lower()
             post_link = entry.link.lower()
 
             is_media_post = (
@@ -164,20 +168,19 @@ def run_main():
                 "/videos/" in post_link or
                 "/media/" in post_link
             )
-
             if is_media_post:
-                print(f"⚠️ Skipping media post: {entry.title or '[No Title]'}")
+                print(f"⚠️ Skipping media post: {title_text or '[No Title]'}")
                 continue
 
-            result = analyze_post(entry.title)
+            result = analyze_post(title_text)
             summary = result.get("summary", "").strip()
 
-            if should_skip(summary, entry.title):
+            if should_skip(summary, title_text):
                 print("❌ Skipping post due to weak/empty summary or raw link.")
                 continue
 
             clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
-                entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
+                title_text if title_text else result.get("headline", "")[:60]
             )
 
             print(f"✅ Final Title: {clean_title}")
@@ -204,16 +207,19 @@ def run_main():
             if tweet["link"] in existing_links:
                 continue
 
-            result = analyze_post(tweet["text"])
+            tweet_text = tweet["text"].strip()
+            if re.match(r"^https?://\S+$", tweet_text):
+                print(f"⚠️ Skipping raw link-only tweet: {tweet_text}")
+                continue
+
+            result = analyze_post(tweet_text)
             summary = result.get("summary", "").strip()
 
-            if should_skip(summary, tweet["text"]):
+            if should_skip(summary, tweet_text):
                 print("❌ Skipping tweet due to weak/empty summary or raw link.")
                 continue
 
-            clean_title = tweet["text"].strip()
-            if len(clean_title) > 80:
-                clean_title = clean_title[:80] + "..."
+            clean_title = tweet_text if len(tweet_text) <= 80 else tweet_text[:80] + "..."
             if not clean_title:
                 clean_title = result.get("headline", "")[:60]
 
