@@ -136,11 +136,7 @@ def run_main():
             raw_body = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
             post_link = entry.link.lower()
 
-            # 💣 Hard filter: skip posts that are ONLY links and have no meaningful body
-            if is_raw_link(raw_title) and is_short(raw_body):
-                print(f"💣 Skipping raw-link-only post with empty/short body: {raw_title}")
-                continue
-
+            # Skip media
             is_media = (
                 hasattr(entry, "media_content") or
                 any(word in raw_title.lower() for word in ["video", "speech", "watch", "live"]) or
@@ -150,7 +146,22 @@ def run_main():
                 print(f"⚠️ Skipping media post: {raw_title}")
                 continue
 
+            # If Truth Social and only link with no real body, try scraping the link
             analyze_text = raw_body if source == "White House" else raw_title
+            if source == "Truth Social" and is_raw_link(analyze_text) and is_short(analyze_text):
+                try:
+                    print(f"🌐 Fetching content from: {post_link}")
+                    response = requests.get(post_link, timeout=5)
+                    paragraphs = re.findall(r"<p>(.*?)</p>", response.text, re.DOTALL)
+                    visible_text = " ".join(p.strip() for p in paragraphs if len(p.strip()) > 10)
+                    if len(visible_text.strip().split()) > 3:
+                        analyze_text = visible_text.strip()
+                        print("✅ Replaced analyze_text with fetched page content")
+                    else:
+                        print("⚠️ Page content too short or not useful")
+                except Exception as e:
+                    print(f"❌ Could not fetch page: {e}")
+
             result = analyze_post(analyze_text)
             summary = result.get("summary", "").strip()
 
