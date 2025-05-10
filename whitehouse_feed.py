@@ -55,12 +55,14 @@ def fetch_page_text(url):
         print(f"⚠️ Could not extract HTML content from {url}: {e}")
         return ""
 
-def is_useless_html(text):
+def is_useless_content(text):
+    """Returns True if text is just a link/image/video or too short to be meaningful."""
     if not text or text.strip() == "":
         return True
-    text = text.lower().strip()
     plain = BeautifulSoup(text, "html.parser").get_text(strip=True)
-    return not plain or len(plain.split()) < 5
+    if not plain or len(plain.split()) < 5:
+        return True
+    return False
 
 def analyze_post(text):
     try:
@@ -84,37 +86,6 @@ def analyze_post(text):
         print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
-def is_raw_link(text):
-    return re.match(r"^https?://\S+$", text.strip())
-
-def is_short(text):
-    return len(text.strip().split()) <= 3
-
-def should_skip(summary_text, original_text=""):
-    summary_text = summary_text.lower().strip()
-    original_text = original_text.lower().strip()
-
-    skip_phrases = [
-        "no specific information provided",
-        "insufficient information provided for analysis",
-        "the post does not provide any specific information",
-        "the post does not provide any specific information or context to analyze",
-        "this post lacks context",
-        "this update offers no insight",
-        "provides insights into the current geopolitical and financial landscape",
-        "geopolitical and financial analysis of post from",
-        "unknown", "no content", ""
-    ]
-
-    return (
-        summary_text.startswith("[error")
-        or any(phrase in summary_text for phrase in skip_phrases)
-        or is_raw_link(summary_text)
-        or is_raw_link(original_text)
-        or is_short(original_text)
-        or "[no title]" in original_text
-    )
-
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,36 +98,45 @@ def run_main():
 
     def process_entry(text, link, published, source):
         if link in blocked_links:
-            print(f"💣 BLOCKED: Skipping known bad link: {link}")
+            print(f"💣 BLOCKED: {link}")
             return
 
-        print(f"\n=== PROCESSING: {link} ===")
-        print(f"Initial Text: {text[:300]}\n")
-
+        print(f"\n=== PROCESSING: {link} ({source}) ===")
         raw_input = text.strip()
 
-        if is_raw_link(raw_input) or is_short(raw_input) or is_useless_html(raw_input):
-            print(f"🔍 Weak or short input detected: {raw_input[:60]}")
-            html_text = fetch_page_text(link)
-            print(f"📄 Fallback HTML content: {html_text[:300]}")
-            if is_useless_html(html_text):
-                print("🚫 No usable fallback content. Skipping.")
-                return
-            raw_input = html_text
+        # 🔒 Hard skip: known junk from Truth Social like "[No Title] - Post from ..."
+        if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", raw_input):
+            print("🚫 Skipping known generic '[No Title] - Post from ...' post.")
+            return
 
-        print(f"\n--- FINAL INPUT TO GPT ---\n{raw_input[:500]}")
+        # Try fallback HTML content if initial content looks weak
+        if is_useless_content(raw_input):
+            print("🔍 Weak content from feed, fetching page...")
+            html_fallback = fetch_page_text(link)
+            if is_useless_content(html_fallback):
+                if source != "White House":
+                    print("🚫 Skipping post: No usable content found (non-WH source).")
+                    return
+                else:
+                    print("⚠️ Weak White House post, but allowing through.")
+            else:
+                raw_input = html_fallback
+
+        if source == "White House":
+            print("🏛️ Analyzing WH post (always included).")
+        else:
+            print(f"✏️ Sending to GPT: {raw_input[:300]}")
 
         result = analyze_post(raw_input)
         summary = result.get("summary", "").strip()
 
-        print(f"\n--- GPT SUMMARY ---\n{summary[:300]}")
-
-        if should_skip(summary, raw_input):
-            print("❌ Skipping post after GPT analysis.")
+        if summary.lower().startswith("[error"):
+            print("❌ Skipping post due to GPT error.")
             return
 
         clean_title = result.get("headline", "")[:60]
         print(f"✅ Final Title: {clean_title}")
+
         summarized_entries.append({
             "title": clean_title,
             "link": link,
@@ -178,17 +158,13 @@ def run_main():
             continue
 
         for entry in feed.entries[:5]:
-            print("\n=== RAW FEED ENTRY ===")
-            print(f"Title: {getattr(entry, 'title', '')}")
-            print(f"Summary: {getattr(entry, 'summary', '')}")
-            print(f"Link: {entry.link}")
-
             title = getattr(entry, "title", "").strip()
-            body = getattr(entry, "summary", "") or getattr(entry, "description", "")
+            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
             link = entry.link
             published = getattr(entry, "published", None)
 
-            process_entry(body if source == "White House" else title, link, published, source)
+            content = summary if source == "White House" else title
+            process_entry(content, link, published, source)
 
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
@@ -197,6 +173,8 @@ def run_main():
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
+
+    print(f"\n✅ Saved {len(summarized_entries)} posts to {json_path}")
 
 if __name__ == "__main__":
     run_main()
