@@ -6,6 +6,7 @@ import openai
 import feedparser
 import requests
 from datetime import datetime
+import re
 
 # Load environment variables
 load_dotenv()
@@ -113,8 +114,20 @@ def should_skip(summary_text):
         "no content",
         "",
     ]
+
     summary_text = summary_text.lower().strip()
-    return summary_text.startswith("[error") or summary_text in skip_phrases
+
+    # Skip if error or vague
+    if summary_text.startswith("[error"):
+        return True
+    if summary_text in skip_phrases:
+        return True
+
+    # Skip if it's just a plain link
+    if re.match(r"^https?://\S+$", summary_text):
+        return True
+
+    return False
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
