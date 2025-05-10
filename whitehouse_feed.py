@@ -108,11 +108,12 @@ Output only valid JSON using this structure:
 def should_skip(summary_text):
     skip_phrases = [
         "no specific information provided",
+        "insufficient information provided for analysis",
         "unknown",
         "no content",
         "",
     ]
-    
+
     summary_text = summary_text.lower().strip()
     return summary_text.startswith("[error") or summary_text in skip_phrases
 
@@ -143,7 +144,7 @@ def run_main():
             if entry.link in existing_links:
                 continue
 
-            # Smarter media filtering
+            # Media post filtering
             post_title = entry.title.lower() if hasattr(entry, "title") else ""
             post_link = entry.link.lower()
 
@@ -170,11 +171,11 @@ def run_main():
                 print("❌ Skipping post due to weak/empty summary.")
                 continue
 
+            # Title logic: Force AI headline for Truth Social
             if source == "Truth Social":
                 clean_title = result.get("headline", "")[:60]
             else:
                 clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
-
 
             print(f"✅ Final Title: {clean_title}")
 
