@@ -47,13 +47,12 @@ def fetch_tweets(username, count=5):
 
 def fetch_page_text(url):
     try:
-        res = requests.get(url, timeout=5)
+        res = requests.get(url, timeout=6)
         soup = BeautifulSoup(res.text, "html.parser")
         paragraphs = soup.find_all("p")
-        full_text = " ".join(p.get_text(strip=True) for p in paragraphs)
-        return full_text.strip()
+        return " ".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)).strip()
     except Exception as e:
-        print(f"⚠️ Failed to fetch content from {url}: {e}")
+        print(f"⚠️ Could not extract HTML content from {url}: {e}")
         return ""
 
 def analyze_post(text):
@@ -78,11 +77,8 @@ def analyze_post(text):
         print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
-def is_raw_link(text):
-    return re.match(r"^https?://\S+$", text.strip())
-
-def is_short(text):
-    return len(text.strip().split()) <= 3
+def is_raw_link(text): return re.match(r"^https?://\S+$", text.strip())
+def is_short(text): return len(text.strip().split()) <= 3
 
 def should_skip(summary_text, original_text=""):
     skip_phrases = [
@@ -90,10 +86,13 @@ def should_skip(summary_text, original_text=""):
         "insufficient information provided for analysis",
         "the post does not provide any specific information",
         "the post does not provide any specific information or context to analyze",
+        "this post lacks context",
+        "this update offers no insight",
         "unknown", "no content", ""
     ]
     summary_text = summary_text.lower().strip()
     original_text = original_text.lower().strip()
+
     return (
         summary_text.startswith("[error")
         or summary_text in skip_phrases
@@ -113,18 +112,19 @@ def run_main():
     existing_links = {entry["link"] for entry in summarized_entries}
 
     def process_entry(text, link, published, source):
-        if is_raw_link(text) or is_short(text):
-            print(f"🔍 Raw link or short post detected. Attempting to fetch HTML: {link}")
+        raw_input = text.strip()
+        if is_raw_link(raw_input) or is_short(raw_input):
+            print(f"🔍 Detected short/link-only input: {raw_input}")
             html_text = fetch_page_text(link)
             if len(html_text.split()) < 10:
-                print("🚫 Not enough real content found in HTML. Skipping.")
+                print("🚫 Not enough fallback content from page. Skipping.")
                 return
-            text = html_text
+            raw_input = html_text
 
-        result = analyze_post(text)
+        result = analyze_post(raw_input)
         summary = result.get("summary", "").strip()
-        if should_skip(summary, text):
-            print(f"❌ Skipping post: {text[:60]}...")
+        if should_skip(summary, raw_input):
+            print(f"❌ Skipping post: {raw_input[:60]}...")
             return
 
         clean_title = result.get("headline", "")[:60]
@@ -141,7 +141,7 @@ def run_main():
             "timestamp": datetime.now().isoformat()
         })
 
-    # Process RSS feeds
+    # RSS FEEDS
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
@@ -160,7 +160,7 @@ def run_main():
 
             process_entry(body if source == "White House" else title, link, published, source)
 
-    # Process Tweets
+    # TWEETS
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
         for tweet in tweets:
