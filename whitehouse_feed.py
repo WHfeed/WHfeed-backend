@@ -7,7 +7,7 @@ import openai
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Load environment variables
 load_dotenv()
@@ -191,7 +191,7 @@ def run_main():
     recap = summarize_feed_for_recap(summarized_entries[:10])
     output = {
         "recap": recap,
-        "recap_time": datetime.utcnow().strftime("%-I:%M %p UTC"),  # ✅ Change key name here
+        "recap_time": datetime.utcnow().strftime("%I:%M %p UTC").lstrip("0"),  # ✅ Change key name here
         "posts": summarized_entries
     }
 
