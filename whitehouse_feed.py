@@ -68,12 +68,12 @@ def analyze_post(text):
             messages=[
                 {"role": "system", "content": """You are a geopolitical and financial analyst. Return only this JSON:
 {
-  \"headline\": \"(max 60 characters)\",
-  \"summary\": \"...\",
-  \"tags\": [\"...\"],
-  \"sentiment\": \"...\",
-  \"impact\": X
-}"""},
+  "headline": "(max 60 characters)",
+  "summary": "...",
+  "tags": ["..."],
+  "sentiment": "...",
+  "impact": X
+}""" },
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
@@ -82,6 +82,22 @@ def analyze_post(text):
     except Exception as e:
         print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
+
+def summarize_feed_for_recap(entries):
+    try:
+        text = "\n".join([f"- {e['title']}: {e['summary']}" for e in entries])
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a professional news summarizer. Recap the day's news in 2–4 insightful sentences."},
+                {"role": "user", "content": f"Summarize the following:\n{text}"}
+            ],
+            temperature=0.4,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"❌ Recap generation failed: {e}")
+        return "Recap temporarily unavailable due to processing error."
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
@@ -129,7 +145,7 @@ def run_main():
             print("❌ Skipping post due to GPT error.")
             return
 
-        clean_title = result.get("headline", "")  # No longer truncated manually
+        clean_title = result.get("headline", "")
         timestamp = datetime.utcnow().isoformat() + "Z"
 
         print(f"✅ Final Title: {clean_title}")
@@ -144,7 +160,7 @@ def run_main():
             "impact": result.get("impact", 0),
             "source": source,
             "timestamp": timestamp,
-            "display_time": timestamp  # now ISO format and safe for JS
+            "display_time": timestamp
         })
 
     for url, source in rss_feeds:
@@ -169,15 +185,20 @@ def run_main():
         for tweet in tweets:
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
-    summarized_entries.sort(
-        key=lambda x: x["timestamp"],
-        reverse=True
-    )
+    summarized_entries.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    # Generate recap for the latest 10 posts
+    recap = summarize_feed_for_recap(summarized_entries[:10])
+    output = {
+        "recap": recap,
+        "last_updated": datetime.utcnow().strftime("%-I:%M %p UTC"),
+        "posts": summarized_entries
+    }
 
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
+        json.dump(output, f, indent=4, ensure_ascii=False)
 
-    print(f"\n✅ Saved {len(summarized_entries)} posts to {json_path}")
+    print(f"\n✅ Saved {len(summarized_entries)} posts and recap to {json_path}")
 
 if __name__ == "__main__":
     run_main()
