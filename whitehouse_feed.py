@@ -105,23 +105,26 @@ def should_skip(summary_text, original_text=""):
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    summarized_entries = []
 
-    if json_path.exists():
-        with open(json_path, "r", encoding="utf-8") as f:
-            summarized_entries = json.load(f)
+    # ⛔ Explicit blacklist
+    blocked_links = {
+        "https://trumpstruth.org/statuses/31027",
+    }
 
-    existing_links = {entry["link"] for entry in summarized_entries}
+    summarized_entries = []  # 🔄 Always start fresh
 
     def process_entry(text, link, published, source):
-        # 🚫 Hard skip for problematic case
-        if source == "Truth Social" and "whitehouse.gov/articles/" in link:
-            print(f"💣 Skipping known bad link from Truth Social: {link}")
+        if link in blocked_links:
+            print(f"💣 BLOCKED: Skipping known bad link: {link}")
             return
 
         raw_input = text.strip()
 
         if is_raw_link(raw_input) or is_short(raw_input):
+            if "whitehouse.gov/articles/" in link:
+                print(f"💣 Skipping known low-content WH article link: {link}")
+                return
+
             print(f"🔍 Detected short/link-only input: {raw_input}")
             html_text = fetch_page_text(link)
             if len(html_text.split()) < 10:
@@ -159,8 +162,6 @@ def run_main():
             continue
 
         for entry in feed.entries[:5]:
-            if entry.link in existing_links:
-                continue
             title = getattr(entry, "title", "").strip()
             body = getattr(entry, "summary", "") or getattr(entry, "description", "")
             link = entry.link
@@ -172,8 +173,6 @@ def run_main():
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
         for tweet in tweets:
-            if tweet["link"] in existing_links:
-                continue
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
     with open(json_path, "w", encoding="utf-8") as f:
