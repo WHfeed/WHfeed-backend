@@ -170,7 +170,11 @@ def run_main():
                 print("❌ Skipping post due to weak/empty summary.")
                 continue
 
-            clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
+            if source == "Truth Social":
+                clean_title = result.get("headline", "")[:60]
+            else:
+                clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
+
 
             print(f"✅ Final Title: {clean_title}")
 
