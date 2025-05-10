@@ -109,10 +109,13 @@ def should_skip(summary_text, original_text=""):
     skip_phrases = [
         "no specific information provided",
         "insufficient information provided for analysis",
+        "the post does not provide any specific information",
+        "the post does not provide any specific information or context to analyze",
         "unknown",
         "no content",
         "",
     ]
+
     summary_text = summary_text.lower().strip()
     original_text = original_text.lower().strip()
 
