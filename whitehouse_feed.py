@@ -77,8 +77,11 @@ def analyze_post(text):
         print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
-def is_raw_link(text): return re.match(r"^https?://\S+$", text.strip())
-def is_short(text): return len(text.strip().split()) <= 3
+def is_raw_link(text):
+    return re.match(r"^https?://\S+$", text.strip())
+
+def is_short(text):
+    return len(text.strip().split()) <= 3
 
 def should_skip(summary_text, original_text=""):
     skip_phrases = [
@@ -113,7 +116,12 @@ def run_main():
 
     def process_entry(text, link, published, source):
         raw_input = text.strip()
+
         if is_raw_link(raw_input) or is_short(raw_input):
+            if "whitehouse.gov/articles/" in link:
+                print(f"💣 Skipping known low-content WH article link: {link}")
+                return
+
             print(f"🔍 Detected short/link-only input: {raw_input}")
             html_text = fetch_page_text(link)
             if len(html_text.split()) < 10:
