@@ -113,14 +113,8 @@ def should_skip(summary_text):
         "",
     ]
     
-    # Normalize summary text for comparison
     summary_text = summary_text.lower().strip()
-
-    # Skip if summary starts with [ERROR]
-    if summary_text.startswith("[error"):
-        return True
-
-    return summary_text in skip_phrases
+    return summary_text.startswith("[error") or summary_text in skip_phrases
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
@@ -148,8 +142,23 @@ def run_main():
         for entry in feed.entries[:5]:
             if entry.link in existing_links:
                 continue
-            if hasattr(entry, "media_content") or "video" in entry.title.lower():
-                print(f"⚠️ Skipping media post: {entry.title}")
+
+            # Smarter media filtering
+            post_title = entry.title.lower() if hasattr(entry, "title") else ""
+            post_link = entry.link.lower()
+
+            is_media_post = (
+                hasattr(entry, "media_content") or
+                "video" in post_title or
+                "watch" in post_title or
+                "speech" in post_title or
+                "live" in post_title or
+                "/videos/" in post_link or
+                "/media/" in post_link
+            )
+
+            if is_media_post:
+                print(f"⚠️ Skipping media post: {entry.title or '[No Title]'}")
                 continue
 
             print(f"📰 Source: {source}")
@@ -161,10 +170,7 @@ def run_main():
                 print("❌ Skipping post due to weak/empty summary.")
                 continue
 
-            # Clean title logic
-            clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() != "" else None
-            if not clean_title:
-                clean_title = result.get("summary", "")[:60] + "..."
+            clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
 
             print(f"✅ Final Title: {clean_title}")
 
@@ -175,7 +181,7 @@ def run_main():
                 "summary": result.get("summary", ""),
                 "tags": result.get("tags", []),
                 "sentiment": result.get("sentiment", "Unknown"),
-                "impact": result.get("impact", {}),
+                "impact": result.get("impact", 0),
                 "source": source,
                 "timestamp": datetime.now().isoformat()
             })
@@ -204,7 +210,7 @@ def run_main():
                 clean_title = clean_title[:80] + "..."
 
             if not clean_title:
-                clean_title = result.get("summary", "")[:60] + "..."
+                clean_title = result.get("headline", "")[:60]
 
             print(f"✅ Final Title: {clean_title}")
 
@@ -215,7 +221,7 @@ def run_main():
                 "summary": result.get("summary", ""),
                 "tags": result.get("tags", []),
                 "sentiment": result.get("sentiment", "Unknown"),
-                "impact": result.get("impact", {}),
+                "impact": result.get("impact", 0),
                 "source": source,
                 "timestamp": datetime.now().isoformat()
             })
