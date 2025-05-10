@@ -56,13 +56,10 @@ def fetch_page_text(url):
         return ""
 
 def is_useless_content(text):
-    """Returns True if text is just a link/image/video or too short to be meaningful."""
     if not text or text.strip() == "":
         return True
     plain = BeautifulSoup(text, "html.parser").get_text(strip=True)
-    if not plain or len(plain.split()) < 5:
-        return True
-    return False
+    return not plain or len(plain.split()) < 5
 
 def analyze_post(text):
     try:
@@ -104,12 +101,10 @@ def run_main():
         print(f"\n=== PROCESSING: {link} ({source}) ===")
         raw_input = text.strip()
 
-        # 🔒 Hard skip: known junk from Truth Social like "[No Title] - Post from ..."
         if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", raw_input):
             print("🚫 Skipping known generic '[No Title] - Post from ...' post.")
             return
 
-        # Try fallback HTML content if initial content looks weak
         if is_useless_content(raw_input):
             print("🔍 Weak content from feed, fetching page...")
             html_fallback = fetch_page_text(link)
@@ -135,6 +130,8 @@ def run_main():
             return
 
         clean_title = result.get("headline", "")[:60]
+        timestamp = datetime.now().isoformat()
+
         print(f"✅ Final Title: {clean_title}")
 
         summarized_entries.append({
@@ -146,8 +143,10 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": timestamp,
+            "display_time": timestamp  # now ISO format and safe for JS
         })
+
 
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
@@ -170,6 +169,12 @@ def run_main():
         tweets = fetch_tweets(username)
         for tweet in tweets:
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
+
+    # Sort newest captured posts first
+    summarized_entries.sort(
+        key=lambda x: x["timestamp"],
+        reverse=True
+    )
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
