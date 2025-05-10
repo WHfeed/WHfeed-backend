@@ -103,7 +103,7 @@ Output only valid JSON using this structure:
         result = response.choices[0].message.content.strip()
         return json.loads(result)
     except Exception as e:
-        return {"summary": "[ERROR] " + str(e)}
+        return {"summary": f"[ERROR] {e}"}
 
 def should_skip(summary_text):
     skip_phrases = [
@@ -113,7 +113,6 @@ def should_skip(summary_text):
         "no content",
         "",
     ]
-
     summary_text = summary_text.lower().strip()
     return summary_text.startswith("[error") or summary_text in skip_phrases
 
@@ -144,7 +143,6 @@ def run_main():
             if entry.link in existing_links:
                 continue
 
-            # Media post filtering
             post_title = entry.title.lower() if hasattr(entry, "title") else ""
             post_link = entry.link.lower()
 
@@ -162,28 +160,24 @@ def run_main():
                 print(f"⚠️ Skipping media post: {entry.title or '[No Title]'}")
                 continue
 
-            print(f"📰 Source: {source}")
-            print(f"📢 Original Post: {entry.title}")
-            print(f"🔗 {entry.link}")
-
             result = analyze_post(entry.title)
-            if "summary" not in result or should_skip(result.get("summary", "")):
+            summary = result.get("summary", "").strip()
+
+            if should_skip(summary):
                 print("❌ Skipping post due to weak/empty summary.")
                 continue
 
-            # Title logic: Force AI headline for Truth Social
-            if source == "Truth Social":
-                clean_title = result.get("headline", "")[:60]
-            else:
-                clean_title = entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
+            clean_title = result.get("headline", "")[:60] if source == "Truth Social" else (
+                entry.title.strip() if hasattr(entry, "title") and entry.title.strip() else result.get("headline", "")[:60]
+            )
 
             print(f"✅ Final Title: {clean_title}")
 
             summarized_entries.append({
                 "title": clean_title,
                 "link": entry.link,
-                "published": entry.published if "published" in entry else None,
-                "summary": result.get("summary", ""),
+                "published": getattr(entry, "published", None),
+                "summary": summary,
                 "tags": result.get("tags", []),
                 "sentiment": result.get("sentiment", "Unknown"),
                 "impact": result.get("impact", 0),
@@ -201,19 +195,16 @@ def run_main():
             if tweet["link"] in existing_links:
                 continue
 
-            print(f"📰 Source: {source}")
-            print(f"📢 Tweet: {tweet['text']}")
-            print(f"🔗 {tweet['link']}")
-
             result = analyze_post(tweet["text"])
-            if "summary" not in result or should_skip(result.get("summary", "")):
+            summary = result.get("summary", "").strip()
+
+            if should_skip(summary):
                 print("❌ Skipping tweet due to weak/empty summary.")
                 continue
 
             clean_title = tweet["text"].strip()
             if len(clean_title) > 80:
                 clean_title = clean_title[:80] + "..."
-
             if not clean_title:
                 clean_title = result.get("headline", "")[:60]
 
@@ -223,7 +214,7 @@ def run_main():
                 "title": clean_title,
                 "link": tweet["link"],
                 "published": tweet["created_at"],
-                "summary": result.get("summary", ""),
+                "summary": summary,
                 "tags": result.get("tags", []),
                 "sentiment": result.get("sentiment", "Unknown"),
                 "impact": result.get("impact", 0),
