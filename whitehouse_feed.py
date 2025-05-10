@@ -82,6 +82,12 @@ Use this format:
         print(f"❌ OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
+def is_raw_link(text):
+    return re.match(r"^https?://\S+$", text.strip())
+
+def is_short(text):
+    return len(text.strip().split()) <= 3
+
 def should_skip(summary_text, original_text=""):
     skip_phrases = [
         "no specific information provided",
@@ -92,12 +98,12 @@ def should_skip(summary_text, original_text=""):
     ]
     summary_text = summary_text.lower().strip()
     original_text = original_text.lower().strip()
-
-    is_error = summary_text.startswith("[error")
-    is_raw_link = re.match(r"^https?://\S+$", summary_text) or re.match(r"^https?://\S+$", original_text)
-    is_too_short = len(original_text.split()) < 3  # 🧠 Minimum word count rule
-
-    return is_error or summary_text in skip_phrases or is_raw_link or is_too_short
+    return (
+        summary_text.startswith("[error")
+        or summary_text in skip_phrases
+        or is_raw_link(summary_text)
+        or is_raw_link(original_text)
+    )
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
@@ -111,7 +117,6 @@ def run_main():
 
     existing_links = {entry["link"] for entry in summarized_entries}
 
-    # --- Process RSS feeds ---
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
@@ -129,12 +134,13 @@ def run_main():
 
             raw_title = getattr(entry, "title", "").strip()
             raw_body = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
+            post_link = entry.link.lower()
 
-            if source != "White House" and re.match(r"^https?://\S+$", raw_body):
-                print(f"⚠️ Skipping link-only post: {raw_title}")
+            # 💣 Hard filter: skip posts that are ONLY links and have no meaningful body
+            if is_raw_link(raw_title) and is_short(raw_body):
+                print(f"💣 Skipping raw-link-only post with empty/short body: {raw_title}")
                 continue
 
-            post_link = entry.link.lower()
             is_media = (
                 hasattr(entry, "media_content") or
                 any(word in raw_title.lower() for word in ["video", "speech", "watch", "live"]) or
@@ -169,46 +175,6 @@ def run_main():
                 "timestamp": datetime.now().isoformat()
             })
 
-    # --- Process Tweets ---
-    for username, source in twitter_accounts:
-        print(f"\n📡 Fetching tweets: {username}")
-        tweets = fetch_tweets(username)[:1]
-        print(f"📄 {len(tweets)} tweets found.")
-
-        for tweet in tweets:
-            if tweet["link"] in existing_links:
-                continue
-
-            text = tweet["text"].strip()
-            if re.match(r"^https?://\S+$", text):
-                print(f"⚠️ Skipping raw link tweet: {text}")
-                continue
-
-            result = analyze_post(text)
-            summary = result.get("summary", "").strip()
-
-            if should_skip(summary, text):
-                print(f"❌ Skipping tweet: {text}")
-                continue
-
-            clean_title = text if len(text) <= 80 else text[:80] + "..."
-            if not clean_title:
-                clean_title = result.get("headline", "")[:60]
-
-            print(f"✅ Final Title: {clean_title}")
-            summarized_entries.append({
-                "title": clean_title,
-                "link": tweet["link"],
-                "published": tweet["created_at"],
-                "summary": summary,
-                "tags": result.get("tags", []),
-                "sentiment": result.get("sentiment", "Unknown"),
-                "impact": result.get("impact", 0),
-                "source": source,
-                "timestamp": datetime.now().isoformat()
-            })
-
-    # Save feed
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summarized_entries, f, indent=4, ensure_ascii=False)
 
