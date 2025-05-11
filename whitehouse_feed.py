@@ -103,6 +103,17 @@ def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Load existing data to preserve timestamps
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            try:
+                existing_data = json.load(f)
+                existing_posts = {p["link"]: p for p in existing_data.get("posts", [])}
+            except Exception:
+                existing_posts = {}
+    else:
+        existing_posts = {}
+
     blocked_links = {
         "https://trumpstruth.org/statuses/31027",
     }
@@ -146,7 +157,15 @@ def run_main():
             return
 
         clean_title = result.get("headline", "")
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        existing = existing_posts.get(link)
+
+        if existing:
+            timestamp = existing["timestamp"]
+            display_time = existing["display_time"]
+        else:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            timestamp = now_iso
+            display_time = now_iso
 
         print(f"✅ Final Title: {clean_title}")
 
@@ -160,7 +179,7 @@ def run_main():
             "impact": result.get("impact", 0),
             "source": source,
             "timestamp": timestamp,
-            "display_time": timestamp
+            "display_time": display_time
         })
 
     for url, source in rss_feeds:
@@ -187,14 +206,12 @@ def run_main():
 
     summarized_entries.sort(key=lambda x: x["timestamp"], reverse=True)
 
-    # Generate recap for the latest 10 posts
     recap = summarize_feed_for_recap(summarized_entries[:10])
     output = {
         "recap": recap,
-        "recap_time": datetime.utcnow().strftime("%I:%M %p UTC").lstrip("0"),  # ✅ Change key name here
+        "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
         "posts": summarized_entries
     }
-
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=4, ensure_ascii=False)
