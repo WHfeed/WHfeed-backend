@@ -210,7 +210,15 @@ def run_main():
         if l not in {e["link"] for e in summarized_entries}
     ]
 
-    all_posts.sort(key=lambda x: x["timestamp"], reverse=True)
+    from datetime import timedelta
+
+    def sort_key(post):
+        ts = datetime.fromisoformat(post["timestamp"])
+        if post["source"] == "Truth Social" and (datetime.now(timezone.utc) - ts) < timedelta(hours=1):
+            return datetime(9999, 1, 1, tzinfo=timezone.utc)
+        return ts
+
+    all_posts.sort(key=sort_key, reverse=True)
 
     source_buckets = {}
     for post in all_posts:
@@ -224,7 +232,7 @@ def run_main():
     for bucket in source_buckets.values():
         trimmed_posts.extend(bucket)
 
-    trimmed_posts.sort(key=lambda x: x["timestamp"], reverse=True)
+    trimmed_posts.sort(key=sort_key, reverse=True)
 
     recap = summarize_feed_for_recap(trimmed_posts[:10])
     output = {
