@@ -17,6 +17,13 @@ TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
+    ("https://www.federalreserve.gov/feeds/press_all.xml", "Federal Reserve"),
+    ("https://www.state.gov/feed/press-releases/", "Department of State"),
+    ("https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=OUSDPA", "Department of Defense"),
+    ("https://www.cbp.gov/rss/national-media-release.xml", "Customs and Border Protection"),
+    ("https://home.treasury.gov/news/press-releases", "Treasury (HTML)"),
+    ("https://www.sec.gov/news/pressreleases", "SEC (HTML)"),
+    ("https://www.dhs.gov/news-releases", "DHS (HTML)"),
 ]
 
 twitter_accounts = [
@@ -66,14 +73,7 @@ def analyze_post(text):
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": """You are a geopolitical and financial analyst. Return only this JSON:
-{
-  \"headline\": \"(max 60 characters)\",
-  \"summary\": \"...\",
-  \"tags\": [\"...\"],
-  \"sentiment\": \"...\",
-  \"impact\": X
-}""" },
+                {"role": "system", "content": "You are a geopolitical and financial analyst. Return only this JSON:\n{\n  \"headline\": \"(max 60 characters)\",\n  \"summary\": \"...\",\n  \"tags\": [\"...\"],\n  \"sentiment\": \"...\",\n  \"impact\": X\n}"},
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
@@ -103,7 +103,6 @@ def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing posts
     if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             try:
@@ -114,17 +113,13 @@ def run_main():
     else:
         existing_posts = {}
 
-    blocked_links = {
-        "https://trumpstruth.org/statuses/31027",
-    }
-
+    blocked_links = {"https://trumpstruth.org/statuses/31027"}
     summarized_entries = []
 
     def process_entry(text, link, published, source):
         if link in blocked_links:
             print(f"💣 BLOCKED: {link}")
             return
-
         if link in existing_posts:
             summarized_entries.append(existing_posts[link])
             print(f"♻️ Reused cached summary for {link}")
@@ -175,36 +170,48 @@ def run_main():
             "display_time": now_iso
         })
 
-    # Process RSS and Twitter feeds
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:
-                title = getattr(entry, "title", "").strip()
-                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                link = entry.link
-                published = getattr(entry, "published", None)
-                content = summary if source == "White House" else title
-                process_entry(content, link, published, source)
+            if "(HTML)" in source:
+                res = requests.get(url, timeout=6)
+                soup = BeautifulSoup(res.text, "html.parser")
+                links = soup.find_all("a", href=True)
+                seen = set()
+                for a in links:
+                    href = a["href"]
+                    if not href.startswith("http"):
+                        href = requests.compat.urljoin(url, href)
+                    text = a.get_text(strip=True)
+                    if href not in seen and len(text) > 10:
+                        process_entry(text, href, None, source)
+                        seen.add(href)
+                        if len(seen) >= 5:
+                            break
+            else:
+                feed = feedparser.parse(url)
+                for entry in feed.entries[:5]:
+                    title = getattr(entry, "title", "").strip()
+                    summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                    link = entry.link
+                    published = getattr(entry, "published", None)
+                    content = summary if source == "White House" else title
+                    process_entry(content, link, published, source)
         except Exception as e:
-            print(f"❌ Failed to parse feed: {e}")
+            print(f"❌ Failed to parse feed for {source}: {e}")
 
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
         for tweet in tweets:
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
-    # Merge with old posts and deduplicate
     all_posts = summarized_entries + [
         p for l, p in existing_posts.items()
         if l not in {e["link"] for e in summarized_entries}
     ]
 
-    # Sort by timestamp
     all_posts.sort(key=lambda x: x["timestamp"], reverse=True)
 
-    # Trim to 12 posts per source
     source_buckets = {}
     for post in all_posts:
         src = post["source"]
@@ -217,10 +224,8 @@ def run_main():
     for bucket in source_buckets.values():
         trimmed_posts.extend(bucket)
 
-    # Final sort
     trimmed_posts.sort(key=lambda x: x["timestamp"], reverse=True)
 
-    # Save result
     recap = summarize_feed_for_recap(trimmed_posts[:10])
     output = {
         "recap": recap,
