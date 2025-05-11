@@ -103,7 +103,7 @@ def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing data to preserve timestamps
+    # Load existing posts
     if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             try:
@@ -125,6 +125,11 @@ def run_main():
             print(f"💣 BLOCKED: {link}")
             return
 
+        if link in existing_posts:
+            summarized_entries.append(existing_posts[link])
+            print(f"♻️ Reused cached summary for {link}")
+            return
+
         print(f"\n=== PROCESSING: {link} ({source}) ===")
         raw_input = text.strip()
 
@@ -144,11 +149,7 @@ def run_main():
             else:
                 raw_input = html_fallback
 
-        if source == "White House":
-            print("🏛️ Analyzing WH post (always included).")
-        else:
-            print(f"✏️ Sending to GPT: {raw_input[:300]}")
-
+        print(f"✏️ Sending to GPT: {raw_input[:300]}")
         result = analyze_post(raw_input)
         summary = result.get("summary", "").strip()
 
@@ -157,15 +158,7 @@ def run_main():
             return
 
         clean_title = result.get("headline", "")
-        existing = existing_posts.get(link)
-
-        if existing:
-            timestamp = existing["timestamp"]
-            display_time = existing["display_time"]
-        else:
-            now_iso = datetime.now(timezone.utc).isoformat()
-            timestamp = now_iso
-            display_time = now_iso
+        now_iso = datetime.now(timezone.utc).isoformat()
 
         print(f"✅ Final Title: {clean_title}")
 
@@ -178,45 +171,67 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": timestamp,
-            "display_time": display_time
+            "timestamp": now_iso,
+            "display_time": now_iso
         })
 
+    # Process RSS and Twitter feeds
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
             feed = feedparser.parse(url)
+            for entry in feed.entries[:5]:
+                title = getattr(entry, "title", "").strip()
+                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                link = entry.link
+                published = getattr(entry, "published", None)
+                content = summary if source == "White House" else title
+                process_entry(content, link, published, source)
         except Exception as e:
             print(f"❌ Failed to parse feed: {e}")
-            continue
-
-        for entry in feed.entries[:5]:
-            title = getattr(entry, "title", "").strip()
-            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-            link = entry.link
-            published = getattr(entry, "published", None)
-
-            content = summary if source == "White House" else title
-            process_entry(content, link, published, source)
 
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
         for tweet in tweets:
             process_entry(tweet["text"], tweet["link"], tweet["created_at"], source)
 
-    summarized_entries.sort(key=lambda x: x["timestamp"], reverse=True)
+    # Merge with old posts and deduplicate
+    all_posts = summarized_entries + [
+        p for l, p in existing_posts.items()
+        if l not in {e["link"] for e in summarized_entries}
+    ]
 
-    recap = summarize_feed_for_recap(summarized_entries[:10])
+    # Sort by timestamp
+    all_posts.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    # Trim to 12 posts per source
+    source_buckets = {}
+    for post in all_posts:
+        src = post["source"]
+        if src not in source_buckets:
+            source_buckets[src] = []
+        if len(source_buckets[src]) < 12:
+            source_buckets[src].append(post)
+
+    trimmed_posts = []
+    for bucket in source_buckets.values():
+        trimmed_posts.extend(bucket)
+
+    # Final sort
+    trimmed_posts.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    # Save result
+    recap = summarize_feed_for_recap(trimmed_posts[:10])
     output = {
         "recap": recap,
         "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
-        "posts": summarized_entries
+        "posts": trimmed_posts
     }
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=4, ensure_ascii=False)
 
-    print(f"\n✅ Saved {len(summarized_entries)} posts and recap to {json_path}")
+    print(f"\n✅ Saved {len(trimmed_posts)} posts and recap to {json_path}")
 
 if __name__ == "__main__":
     run_main()
