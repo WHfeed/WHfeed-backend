@@ -73,7 +73,20 @@ def analyze_post(text):
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a geopolitical and financial analyst. Return only this JSON:\n{\n  \"headline\": \"(max 60 characters)\",\n  \"summary\": \"...\",\n  \"tags\": [\"...\"],\n  \"sentiment\": \"...\",\n  \"impact\": X\n}"},
+                {"role": "system", "content": """You are a geopolitical and financial analyst. When summarizing or titling, follow these rules strictly:
+- Never refer to 'the author' or 'this post' — use names if known (e.g. 'President Trump' for Truth Social posts).
+- Do not include phrases like 'Analysis of...' in titles — just summarize directly.
+- Avoid vague phrases like 'generating interest' or 'creating awareness'.
+- Use active, specific language.
+Return only this JSON:
+{
+  "headline": "(max 60 characters)",
+  "summary": "...",
+  "tags": ["..."],
+  "sentiment": "...",
+  "impact": X
+}"""},
+
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
