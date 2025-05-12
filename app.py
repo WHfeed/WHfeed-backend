@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import os
+import json
+from pathlib import Path
 from whitehouse_feed import run_main
 
 app = Flask(__name__, static_folder="public")
@@ -24,12 +26,10 @@ def get_feed():
 
 @app.route('/reset-and-run-feed', methods=['POST'])
 def reset_and_run_feed():
-    # 🔒 Check auth token from header
     token = request.headers.get("x-auth-token")
     if token != os.environ.get("RESET_TOKEN"):
         return jsonify({"error": "Unauthorized"}), 403
 
-    # 🧹 Delete old feed file
     json_path = os.path.join(app.static_folder, "summarized_feed.json")
     try:
         if os.path.exists(json_path):
@@ -38,9 +38,37 @@ def reset_and_run_feed():
     except Exception as e:
         return jsonify({"error": f"Failed to delete file: {e}"}), 500
 
-    # 🔄 Regenerate new feed
     run_main()
     return jsonify({"status": "Feed reset and regenerated successfully."})
+
+@app.route("/clean-feed", methods=["GET"])
+def clean_feed():
+    json_path = Path("public/summarized_feed.json")
+    if not json_path.exists():
+        return jsonify({"error": "Feed file not found"}), 404
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse JSON: {e}"}), 500
+
+    original_len = len(data.get("posts", []))
+    filtered_posts = [p for p in data["posts"] if not p["source"].startswith("DoD")]
+    removed = original_len - len(filtered_posts)
+    data["posts"] = filtered_posts
+
+    try:
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        return jsonify({"error": f"Failed to write cleaned feed: {e}"}), 500
+
+    return jsonify({
+        "status": "success",
+        "removed": removed,
+        "remaining": len(filtered_posts)
+    }), 200
 
 if __name__ == "__main__":
     port = os.environ.get("PORT")
