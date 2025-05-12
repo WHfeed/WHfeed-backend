@@ -7,7 +7,7 @@ import openai
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -19,7 +19,6 @@ rss_feeds = [
     ("https://www.whitehouse.gov/news/feed", "White House"),
     ("https://www.federalreserve.gov/feeds/press_all.xml", "Federal Reserve"),
     ("https://www.state.gov/feed/press-releases/", "Department of State"),
-    ("https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=OUSDPA", "Department of Defense"),
     ("https://www.cbp.gov/rss/national-media-release.xml", "Customs and Border Protection"),
     ("https://home.treasury.gov/news/press-releases", "Treasury (HTML)"),
     ("https://www.sec.gov/news/pressreleases", "SEC (HTML)"),
@@ -68,12 +67,23 @@ def is_useless_content(text):
     plain = BeautifulSoup(text, "html.parser").get_text(strip=True)
     return not plain or len(plain.split()) < 5
 
-def analyze_post(text):
+def analyze_post(text, source=""):
     try:
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": """You are a geopolitical and financial analyst. When summarizing or titling, follow these rules strictly:
+        if source == "Truth Social":
+            system_prompt = """You are summarizing communications from President Trump. Follow these rules:
+- Always refer to him as 'President Trump', not 'the author' or 'this post'.
+- Be direct, use active phrasing, and summarize as if for political and market analysts.
+- Avoid vague or generic phrases. Assume readers are professionals.
+Return only this JSON:
+{
+  "headline": "(max 60 characters)",
+  "summary": "...",
+  "tags": ["..."],
+  "sentiment": "...",
+  "impact": X
+}"""
+        else:
+            system_prompt = """You are a geopolitical and financial analyst. When summarizing or titling, follow these rules strictly:
 - Never refer to 'the author' or 'this post' — use names if known (e.g. 'President Trump' for Truth Social posts).
 - Do not include phrases like 'Analysis of...' in titles — just summarize directly.
 - Avoid vague phrases like 'generating interest' or 'creating awareness'.
@@ -85,8 +95,12 @@ Return only this JSON:
   "tags": ["..."],
   "sentiment": "...",
   "impact": X
-}"""},
+}"""
 
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Analyze the following post:\n\n{text}"}
             ],
             temperature=0.3,
@@ -158,7 +172,7 @@ def run_main():
                 raw_input = html_fallback
 
         print(f"✏️ Sending to GPT: {raw_input[:300]}")
-        result = analyze_post(raw_input)
+        result = analyze_post(raw_input, source)
         summary = result.get("summary", "").strip()
 
         if summary.lower().startswith("[error"):
@@ -223,8 +237,6 @@ def run_main():
         if l not in {e["link"] for e in summarized_entries}
     ]
 
-    from datetime import timedelta
-
     def sort_key(post):
         ts = datetime.fromisoformat(post["timestamp"])
         if post["source"] == "Truth Social" and (datetime.now(timezone.utc) - ts) < timedelta(hours=1):
@@ -247,7 +259,13 @@ def run_main():
 
     trimmed_posts.sort(key=sort_key, reverse=True)
 
-    recap = summarize_feed_for_recap(trimmed_posts[:10])
+    priority_sources = {"Truth Social", "White House"}
+    priority_posts = [p for p in trimmed_posts if p["source"] in priority_sources][:8]
+    fallback_posts = [p for p in trimmed_posts if p["source"] not in priority_sources]
+    priority_posts += fallback_posts[: (10 - len(priority_posts))]
+
+    recap = summarize_feed_for_recap(priority_posts)
+
     output = {
         "recap": recap,
         "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
