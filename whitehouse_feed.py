@@ -35,7 +35,7 @@ twitter_accounts = [
 
 def fetch_tweets(username, count=5):
     if not TWITTER_API_KEY:
-        print("❌ Twitter API key missing. Skipping X feeds.")
+        print("\u274c Twitter API key missing. Skipping X feeds.")
         return []
     url = f"https://api.twitterapi.io/twitter/user/last_tweets?userName={username}&limit={count}"
     headers = {"x-api-key": TWITTER_API_KEY}
@@ -45,10 +45,10 @@ def fetch_tweets(username, count=5):
             data = response.json().get("data", {}).get("tweets", [])
             return [{"text": t["text"], "link": t["url"], "created_at": t["createdAt"]} for t in data]
         else:
-            print(f"❌ Failed to fetch tweets for {username}: {response.status_code}")
+            print(f"\u274c Failed to fetch tweets for {username}: {response.status_code}")
             return []
     except Exception as e:
-        print(f"❌ Twitter fetch error for {username}: {e}")
+        print(f"\u274c Twitter fetch error for {username}: {e}")
         return []
 
 def fetch_page_text(url):
@@ -58,7 +58,7 @@ def fetch_page_text(url):
         paragraphs = soup.find_all("p")
         return " ".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)).strip()
     except Exception as e:
-        print(f"⚠️ Could not extract HTML content from {url}: {e}")
+        print(f"\u26a0\ufe0f Could not extract HTML content from {url}: {e}")
         return ""
 
 def is_useless_content(text):
@@ -76,11 +76,11 @@ def analyze_post(text, source=""):
 - Avoid vague or generic phrases. Assume readers are professionals.
 Return only this JSON:
 {
-  "headline": "(max 60 characters)",
-  "summary": "...",
-  "tags": ["..."],
-  "sentiment": "...",
-  "impact": X
+  \"headline\": \"(max 60 characters)\",
+  \"summary\": \"...\",
+  \"tags\": [\"...\"],
+  \"sentiment\": \"...\",
+  \"impact\": X
 }"""
         else:
             system_prompt = """You are a geopolitical and financial analyst. When summarizing or titling, follow these rules strictly:
@@ -90,11 +90,11 @@ Return only this JSON:
 - Use active, specific language.
 Return only this JSON:
 {
-  "headline": "(max 60 characters)",
-  "summary": "...",
-  "tags": ["..."],
-  "sentiment": "...",
-  "impact": X
+  \"headline\": \"(max 60 characters)\",
+  \"summary\": \"...\",
+  \"tags\": [\"...\"],
+  \"sentiment\": \"...\",
+  \"impact\": X
 }"""
 
         response = openai.chat.completions.create(
@@ -107,7 +107,7 @@ Return only this JSON:
         )
         return json.loads(response.choices[0].message.content.strip())
     except Exception as e:
-        print(f"❌ OpenAI error: {e}")
+        print(f"\u274c OpenAI error: {e}")
         return {"summary": f"[ERROR] {e}"}
 
 def summarize_feed_for_recap(entries):
@@ -123,11 +123,23 @@ def summarize_feed_for_recap(entries):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ Recap generation failed: {e}")
+        print(f"\u274c Recap generation failed: {e}")
         return "Recap temporarily unavailable due to processing error."
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
+    full_cache_path = Path("public/full_feed_cache.json")
+
+    if full_cache_path.exists():
+        with open(full_cache_path, "r", encoding="utf-8") as f:
+            try:
+                full_cache_data = json.load(f)
+                full_cache_posts = {p["link"]: p for p in full_cache_data.get("posts", [])}
+            except Exception:
+                full_cache_posts = {}
+    else:
+        full_cache_posts = {}
+
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
     if json_path.exists():
@@ -145,61 +157,46 @@ def run_main():
 
     def process_entry(text, link, published, source):
         if link in blocked_links:
-            print(f"💣 BLOCKED: {link}")
+            print(f"\U0001f4a3 BLOCKED: {link}")
             return
-        if link in existing_posts:
-            cached = existing_posts[link]
+        if link in full_cache_posts:
+            cached = full_cache_posts[link]
             if "timestamp" in cached and "display_time" in cached:
-                summarized_entries.append({
-                    "title": cached.get("title", ""),
-                    "link": cached.get("link", ""),
-                    "published": cached.get("published"),
-                    "summary": cached.get("summary", ""),
-                    "tags": cached.get("tags", []),
-                    "sentiment": cached.get("sentiment", "Unknown"),
-                    "impact": cached.get("impact", 0),
-                    "source": cached.get("source", ""),
-                    "timestamp": cached["timestamp"],
-                    "display_time": cached["display_time"],
-                })
-                print(f"♻️ Reused cached summary for {link}")
+                summarized_entries.append(cached)
+                print(f"\u267b\ufe0f Reused cached summary for {link}")
                 return
-            else:
-                print(f"⚠️ Cached post missing timestamp: {link}. Reprocessing...")
-
-
 
         print(f"\n=== PROCESSING: {link} ({source}) ===")
         raw_input = text.strip()
 
         if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", raw_input):
-            print("🚫 Skipping known generic '[No Title] - Post from ...' post.")
+            print("\U0001f6ab Skipping known generic '[No Title] - Post from ...' post.")
             return
 
         if is_useless_content(raw_input):
-            print("🔍 Weak content from feed, fetching page...")
+            print("\ud83d\udd0d Weak content from feed, fetching page...")
             html_fallback = fetch_page_text(link)
             if is_useless_content(html_fallback):
                 if source != "White House":
-                    print("🚫 Skipping post: No usable content found (non-WH source).")
+                    print("\U0001f6ab Skipping post: No usable content found (non-WH source).")
                     return
                 else:
-                    print("⚠️ Weak White House post, but allowing through.")
+                    print("\u26a0\ufe0f Weak White House post, but allowing through.")
             else:
                 raw_input = html_fallback
 
-        print(f"✏️ Sending to GPT: {raw_input[:300]}")
+        print(f"\u270f\ufe0f Sending to GPT: {raw_input[:300]}")
         result = analyze_post(raw_input, source)
         summary = result.get("summary", "").strip()
 
         if summary.lower().startswith("[error"):
-            print("❌ Skipping post due to GPT error.")
+            print("\u274c Skipping post due to GPT error.")
             return
 
         clean_title = result.get("headline", "")
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        print(f"✅ Final Title: {clean_title}")
+        print(f"\u2705 Final Title: {clean_title}")
 
         summarized_entries.append({
             "title": clean_title,
@@ -215,7 +212,7 @@ def run_main():
         })
 
     for url, source in rss_feeds:
-        print(f"\n🌐 Processing feed: {source}")
+        print(f"\n\U0001f310 Processing feed: {source}")
         try:
             if "(HTML)" in source:
                 res = requests.get(url, timeout=6)
@@ -242,7 +239,7 @@ def run_main():
                     content = summary if source == "White House" else title
                     process_entry(content, link, published, source)
         except Exception as e:
-            print(f"❌ Failed to parse feed for {source}: {e}")
+            print(f"\u274c Failed to parse feed for {source}: {e}")
 
     for username, source in twitter_accounts:
         tweets = fetch_tweets(username)
@@ -283,6 +280,13 @@ def run_main():
 
     recap = summarize_feed_for_recap(priority_posts)
 
+    updated_full_cache = {p["link"]: p for p in full_cache_posts.values()}
+    for post in trimmed_posts:
+        updated_full_cache[post["link"]] = post
+
+    with open(full_cache_path, "w", encoding="utf-8") as f:
+        json.dump({"posts": list(updated_full_cache.values())}, f, indent=4, ensure_ascii=False)
+
     output = {
         "recap": recap,
         "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
@@ -292,7 +296,7 @@ def run_main():
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=4, ensure_ascii=False)
 
-    print(f"\n✅ Saved {len(trimmed_posts)} posts and recap to {json_path}")
+    print(f"\n\u2705 Saved {len(trimmed_posts)} posts and recap to {json_path}")
 
 if __name__ == "__main__":
     run_main()
