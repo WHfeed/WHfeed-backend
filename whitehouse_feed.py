@@ -149,11 +149,7 @@ def run_main():
             return
         if link in existing_posts:
             cached = existing_posts[link]
-
-            # Check for missing timestamp or display_time
-            if not cached.get("timestamp") or not cached.get("display_time"):
-                print(f"⚠️ Cached post for {link} missing timestamp → regenerate")
-            else:
+            if "timestamp" in cached and "display_time" in cached:
                 summarized_entries.append({
                     "title": cached.get("title", ""),
                     "link": cached.get("link", ""),
@@ -163,11 +159,14 @@ def run_main():
                     "sentiment": cached.get("sentiment", "Unknown"),
                     "impact": cached.get("impact", 0),
                     "source": cached.get("source", ""),
-                    "timestamp": cached.get("timestamp"),
-                    "display_time": cached.get("display_time"),
+                    "timestamp": cached["timestamp"],
+                    "display_time": cached["display_time"],
                 })
                 print(f"♻️ Reused cached summary for {link}")
                 return
+            else:
+                print(f"⚠️ Cached post missing timestamp: {link}. Reprocessing...")
+
 
 
         print(f"\n=== PROCESSING: {link} ({source}) ===")
@@ -252,7 +251,7 @@ def run_main():
 
     all_posts = summarized_entries + [
         p for l, p in existing_posts.items()
-        if l not in {e["link"] for e in summarized_entries}
+        if l not in {e["link"] for e in summarized_entries} and "timestamp" in p and "display_time" in p
     ]
 
     def sort_key(post):
