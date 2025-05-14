@@ -148,9 +148,23 @@ def run_main():
             print(f"💣 BLOCKED: {link}")
             return
         if link in existing_posts:
-            summarized_entries.append(existing_posts[link])
+            cached = existing_posts[link]
+            # ✅ Explicitly preserve original timestamp and display_time
+            summarized_entries.append({
+                "title": cached.get("title", ""),
+                "link": cached.get("link", ""),
+                "published": cached.get("published"),
+                "summary": cached.get("summary", ""),
+                "tags": cached.get("tags", []),
+                "sentiment": cached.get("sentiment", "Unknown"),
+                "impact": cached.get("impact", 0),
+                "source": cached.get("source", ""),
+                "timestamp": cached.get("timestamp"),
+                "display_time": cached.get("display_time"),
+            })
             print(f"♻️ Reused cached summary for {link}")
             return
+
 
         print(f"\n=== PROCESSING: {link} ({source}) ===")
         raw_input = text.strip()
