@@ -149,21 +149,25 @@ def run_main():
             return
         if link in existing_posts:
             cached = existing_posts[link]
-            # ✅ Explicitly preserve original timestamp and display_time
-            summarized_entries.append({
-                "title": cached.get("title", ""),
-                "link": cached.get("link", ""),
-                "published": cached.get("published"),
-                "summary": cached.get("summary", ""),
-                "tags": cached.get("tags", []),
-                "sentiment": cached.get("sentiment", "Unknown"),
-                "impact": cached.get("impact", 0),
-                "source": cached.get("source", ""),
-                "timestamp": cached.get("timestamp"),
-                "display_time": cached.get("display_time"),
-            })
-            print(f"♻️ Reused cached summary for {link}")
-            return
+
+            # Check for missing timestamp or display_time
+            if not cached.get("timestamp") or not cached.get("display_time"):
+                print(f"⚠️ Cached post for {link} missing timestamp → regenerate")
+            else:
+                summarized_entries.append({
+                    "title": cached.get("title", ""),
+                    "link": cached.get("link", ""),
+                    "published": cached.get("published"),
+                    "summary": cached.get("summary", ""),
+                    "tags": cached.get("tags", []),
+                    "sentiment": cached.get("sentiment", "Unknown"),
+                    "impact": cached.get("impact", 0),
+                    "source": cached.get("source", ""),
+                    "timestamp": cached.get("timestamp"),
+                    "display_time": cached.get("display_time"),
+                })
+                print(f"♻️ Reused cached summary for {link}")
+                return
 
 
         print(f"\n=== PROCESSING: {link} ({source}) ===")
