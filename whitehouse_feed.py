@@ -14,15 +14,23 @@ load_dotenv()
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
 
+# Custom headers for RSS compatibility (needed for Treasury feed)
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+    "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"
+}
+
 rss_feeds = [
     ("https://trumpstruth.org/feed", "Truth Social"),
     ("https://www.whitehouse.gov/news/feed", "White House"),
     ("https://www.federalreserve.gov/feeds/press_all.xml", "Federal Reserve"),
-    ("https://www.state.gov/feed/press-releases/", "Department of State"),
-    ("https://www.cbp.gov/rss/national-media-release.xml", "Customs and Border Protection"),
-    ("https://home.treasury.gov/news/press-releases", "Treasury (HTML)"),
-    ("https://www.sec.gov/news/pressreleases", "SEC (HTML)"),
-    ("https://www.dhs.gov/news-releases", "DHS (HTML)"),
+    ("https://www.state.gov/rss-feed/press-releases/feed/", "Department of State"),
+    ("https://www.cbp.gov/rss/newsroom", "Customs and Border Protection"),
+    ("https://www.commerce.gov/feeds/news", "Commerce Department"),
+    ("https://www.treasurydirect.gov/TA_WS/securities/announced/rss", "Treasury"),
+    ("https://www.sec.gov/news/pressreleases.rss", "SEC"),
+    ("https://www.dhs.gov/news-releases", "DHS")  # May require cleanup later
+    # Congressional Record Digest removed (URL broken)
 ]
 
 twitter_accounts = [
@@ -53,7 +61,7 @@ def fetch_tweets(username, count=5):
 
 def fetch_page_text(url):
     try:
-        res = requests.get(url, timeout=6)
+        res = requests.get(url, headers=HEADERS, timeout=6)
         soup = BeautifulSoup(res.text, "html.parser")
         paragraphs = soup.find_all("p")
         return " ".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)).strip()
@@ -200,30 +208,14 @@ def run_main():
     for url, source in rss_feeds:
         print(f"\n🌐 Processing feed: {source}")
         try:
-            if "(HTML)" in source:
-                res = requests.get(url, timeout=6)
-                soup = BeautifulSoup(res.text, "html.parser")
-                links = soup.find_all("a", href=True)
-                seen = set()
-                for a in links:
-                    href = a["href"]
-                    if not href.startswith("http"):
-                        href = requests.compat.urljoin(url, href)
-                    text = a.get_text(strip=True)
-                    if href not in seen and len(text) > 10:
-                        process_entry(text, href, None, source)
-                        seen.add(href)
-                        if len(seen) >= 5:
-                            break
-            else:
-                feed = feedparser.parse(url)
-                for entry in feed.entries[:5]:
-                    title = getattr(entry, "title", "").strip()
-                    summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                    link = entry.link
-                    published = getattr(entry, "published", None)
-                    content = summary if source == "White House" else title
-                    process_entry(content, link, published, source)
+            feed = feedparser.parse(requests.get(url, headers=HEADERS, timeout=15).content)
+            for entry in feed.entries[:5]:
+                title = getattr(entry, "title", "").strip()
+                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                link = entry.link
+                published = getattr(entry, "published", None)
+                content = summary if source == "White House" else title
+                process_entry(content, link, published, source)
         except Exception as e:
             print(f"❌ Failed to parse feed for {source}: {e}")
 
