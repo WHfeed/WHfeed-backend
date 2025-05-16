@@ -132,6 +132,7 @@ def generate_expanded_summary(text):
 
 def run_main():
     json_path = Path("public/summarized_feed.json")
+    json_path.parent.mkdir(parents=True, exist_ok=True)
     existing_posts = {}
     if json_path.exists():
         try:
