@@ -27,7 +27,6 @@ rss_feeds = [
     ("https://www.state.gov/rss-feed/press-releases/feed/", "Department of State"),
     ("https://www.cbp.gov/rss/newsroom", "Customs and Border Protection"),
     ("https://www.commerce.gov/feeds/news", "Commerce Department"),
-    ("https://www.treasurydirect.gov/TA_WS/securities/announced/rss", "Treasury"),
     ("https://www.sec.gov/news/pressreleases.rss", "SEC"),
     ("https://www.dhs.gov/news-releases", "DHS")  # May require cleanup later
     # Congressional Record Digest removed (URL broken)
