@@ -149,6 +149,10 @@ def run_main():
             summarized_entries.append(existing_posts[link])
             print(f"♻️ Reused cached summary for {link}")
             return
+        
+        if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", text.strip()):
+            print("🚫 Skipping known generic '[No Title] - Post from ...' post.")
+            return
 
         if is_useless_content(text):
             print("🔍 Weak content from feed, fetching page...")
