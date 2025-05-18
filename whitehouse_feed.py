@@ -259,19 +259,22 @@ def run_main():
     last_recap_time = None
     if "recap_time" in existing_data:
         try:
-            # Try ISO 8601 first
+            # Try ISO 8601 first (preferred format)
             last_recap_time = datetime.fromisoformat(existing_data["recap_time"])
         except ValueError:
             try:
-                # Fallback: legacy format "01:23 PM UTC"
-                last_recap_time = datetime.strptime(existing_data["recap_time"], "%I:%M %p UTC").replace(
+                # Fallback: legacy format like "01:23 PM UTC"
+                last_recap_time = datetime.strptime(
+                    existing_data["recap_time"], "%I:%M %p UTC"
+                ).replace(
                     year=datetime.now(timezone.utc).year,
                     month=datetime.now(timezone.utc).month,
                     day=datetime.now(timezone.utc).day,
                     tzinfo=timezone.utc
-            )
-        except:
-            pass
+                )
+            except Exception as e:
+                print(f"⚠️ Could not parse legacy recap time: {e}")
+                last_recap_time = None
 
     recap_age = (datetime.now(timezone.utc) - last_recap_time).total_seconds() if last_recap_time else None
 
