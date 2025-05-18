@@ -90,16 +90,17 @@ Return only this JSON:
         else:
             system_prompt = """You are a geopolitical and financial analyst summarizing official government communications, policy statements, and regulatory announcements for an audience of institutional investors, analysts, and policymakers.
 
-Summarize the key message of the post in approximately 7 clear, informative, and insight-rich sentences. Avoid vague language, editorializing, or commentary about the post's credibility. Never refer to “the author” or “you provided.” Use neutral, professional tone. Refer to government actors by name where possible.
+Summarize the key message of the post in ~7 compact, informative sentences (no more than 120 words total). Avoid vague language, editorializing, or commentary about the post's credibility. Never refer to “the author” or “you provided.” Use a neutral, professional tone. Refer to government actors by name where possible.
 
 Return only this JSON:
 {
   \"headline\": \"(max 60 characters)\",
-  \"summary\": \"(~7 concise sentences)\",
+  \"summary\": \"(~7 concise sentences / ~120 words max)\",
   \"tags\": [\"...\"],
   \"sentiment\": \"...\",
   \"impact\": X
 }"""
+
 
 
         response = openai.chat.completions.create(
@@ -120,7 +121,7 @@ def generate_expanded_summary(text):
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a geopolitical and economic policy analyst. Expand the original summary with deeper detail and institutional context — but keep it concise and analytical. Avoid generalities, speculation, or editorializing. Do not use phrases like 'the content you provided.' The tone should be neutral and informative. Target length: ~100 words."},
+                {"role": "system", "content": "You are a geopolitical and economic policy analyst. Expand the original summary with deeper detail and institutional context. Avoid generalities, speculation, or editorializing. Do not use phrases like 'the content you provided.' The tone should be neutral and informative. Target length: 120–150 words, and it should be more detailed than the initial summary."},
                 {"role": "user", "content": f"Expand and clarify this content with more depth and any available factual context:\n\n{text}"}
             ],
             temperature=0.4,
