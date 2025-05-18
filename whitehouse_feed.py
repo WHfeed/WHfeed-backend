@@ -88,14 +88,14 @@ Return only this JSON:
   \"impact\": X
 }"""
         else:
-            system_prompt = """You are a geopolitical and financial analyst summarizing official government communications, policy statements, and regulatory announcements for an audience of institutional investors, analysts, and policymakers.
+            system_prompt = """You are a geopolitical and financial analyst summarizing official government communications, policy statements, and regulatory developments.
 
-Summarize the key message of the post in ~7 compact, informative sentences (no more than 120 words total). Avoid vague language, editorializing, or commentary about the post's credibility. Never refer to “the author” or “you provided.” Use a neutral, professional tone. Refer to government actors by name where possible.
+Write a concise summary of the key message in **180 characters or fewer**. Use direct, factual language. Do not include vague phrasing, commentary, or refer to 'the content' or 'the author'. Use active voice and name government entities when relevant.
 
 Return only this JSON:
 {
   \"headline\": \"(max 60 characters)\",
-  \"summary\": \"(~7 concise sentences / ~120 words max)\",
+  \"summary\": \"(max 180 characters)\",
   \"tags\": [\"...\"],
   \"sentiment\": \"...\",
   \"impact\": X
