@@ -256,14 +256,24 @@ def run_main():
             print(f"❌ Recap generation failed: {e}")
             return "Recap temporarily unavailable due to processing error."
 
+    existing_data = {}
+    existing_posts = {}
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+                existing_posts = {p["link"]: p for p in existing_data.get("posts", [])}
+        except Exception as e:
+            print(f"⚠️ Failed to load existing JSON: {e}")
+            existing_data = {}
+            existing_posts = {}
+
     last_recap_time = None
     if "recap_time" in existing_data:
         try:
-            # Try ISO 8601 first (preferred format)
             last_recap_time = datetime.fromisoformat(existing_data["recap_time"])
         except ValueError:
             try:
-                # Fallback: legacy format like "01:23 PM UTC"
                 last_recap_time = datetime.strptime(
                     existing_data["recap_time"], "%I:%M %p UTC"
                 ).replace(
@@ -277,6 +287,7 @@ def run_main():
                 last_recap_time = None
 
     recap_age = (datetime.now(timezone.utc) - last_recap_time).total_seconds() if last_recap_time else None
+
 
     if recap_age is not None and recap_age < 3600:
         recap = existing_data.get("recap", "Recap recently generated.")
