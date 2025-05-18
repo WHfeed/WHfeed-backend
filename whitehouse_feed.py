@@ -257,21 +257,23 @@ def run_main():
             return "Recap temporarily unavailable due to processing error."
 
     last_recap_time = None
-    if "recap_time" in existing_data:
-        try:
-            last_recap_time = datetime.strptime(existing_data["recap_time"], "%I:%M %p UTC").replace(tzinfo=timezone.utc)
-        except:
-            pass
+    try:
+        last_recap_time_str = existing_data.get("recap_time")
+        if last_recap_time_str:
+            last_recap_time = datetime.strptime(last_recap_time_str.strip(), "%I:%M %p UTC").replace(tzinfo=timezone.utc)
+    except Exception as e:
+        print(f"⚠️ Failed to parse recap_time: {e}")
+        last_recap_time = None
 
     recap_age = (datetime.now(timezone.utc) - last_recap_time).total_seconds() if last_recap_time else None
 
     if recap_age is not None and recap_age < 3600:
         recap = existing_data.get("recap", "Recap recently generated.")
         recap_time = existing_data.get("recap_time")
-        print("♻️ Reused recent recap")
+        print(f"♻️ Reused recent recap (age: {int(recap_age)}s)")
     else:
         recap = summarize_feed_for_recap(priority_posts)
-        recap_time = datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0")
+        recap_time = datetime.now(timezone.utc).strftime("%I:%M %p UTC")
         print("🧠 Generated new recap")
 
     output = {
