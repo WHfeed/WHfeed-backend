@@ -90,12 +90,12 @@ Return only this JSON:
         else:
             system_prompt = """You are a geopolitical and financial analyst summarizing official government communications, policy statements, and regulatory developments.
 
-Write a concise summary of the key message in **180 characters or fewer**. Use direct, factual language. Do not include vague phrasing, commentary, or refer to 'the content' or 'the author'. Use active voice and name government entities when relevant.
+Summarize the key points in 3–4 compact, high-signal sentences. The entire summary must stay under 200 characters total. Use direct, factual language. Do not include vague phrasing, commentary, or refer to 'the content' or 'the author'. Use active voice and name government entities when relevant.
 
 Return only this JSON:
 {
   \"headline\": \"(max 60 characters)\",
-  \"summary\": \"(max 180 characters)\",
+  \"summary\": \"max 200 characters total, split across 3–4 tight sentences)\",
   \"tags\": [\"...\"],
   \"sentiment\": \"...\",
   \"impact\": X
@@ -256,11 +256,27 @@ def run_main():
             print(f"❌ Recap generation failed: {e}")
             return "Recap temporarily unavailable due to processing error."
 
-    recap = summarize_feed_for_recap(priority_posts)
+    last_recap_time = None
+    if "recap_time" in existing_data:
+        try:
+            last_recap_time = datetime.strptime(existing_data["recap_time"], "%I:%M %p UTC").replace(tzinfo=timezone.utc)
+        except:
+            pass
+
+    recap_age = (datetime.now(timezone.utc) - last_recap_time).total_seconds() if last_recap_time else None
+
+    if recap_age is not None and recap_age < 3600:
+        recap = existing_data.get("recap", "Recap recently generated.")
+        recap_time = existing_data.get("recap_time")
+        print("♻️ Reused recent recap")
+    else:
+        recap = summarize_feed_for_recap(priority_posts)
+        recap_time = datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0")
+        print("🧠 Generated new recap")
 
     output = {
         "recap": recap,
-        "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
+        "recap_time": recap_time,
         "posts": trimmed_posts
     }
 
