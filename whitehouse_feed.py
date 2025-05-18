@@ -88,19 +88,19 @@ Return only this JSON:
   \"impact\": X
 }"""
         else:
-            system_prompt = """You are a geopolitical and financial analyst. When summarizing or titling, follow these rules strictly:
-- Never refer to 'the author' or 'this post' — use names if known (e.g. 'President Trump' for Truth Social posts).
-- Do not include phrases like 'Analysis of...' in titles — just summarize directly.
-- Avoid vague phrases like 'generating interest' or 'creating awareness'.
-- Use active, specific language.
+            system_prompt = """You are a geopolitical and financial analyst summarizing official government communications, policy statements, and regulatory announcements for an audience of institutional investors, analysts, and policymakers.
+
+Summarize the key message of the post in approximately 7 clear, informative, and insight-rich sentences. Avoid vague language, editorializing, or commentary about the post's credibility. Never refer to “the author” or “you provided.” Use neutral, professional tone. Refer to government actors by name where possible.
+
 Return only this JSON:
 {
   \"headline\": \"(max 60 characters)\",
-  \"summary\": \"...\",
+  \"summary\": \"(~7 concise sentences)\",
   \"tags\": [\"...\"],
   \"sentiment\": \"...\",
   \"impact\": X
 }"""
+
 
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -120,7 +120,7 @@ def generate_expanded_summary(text):
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a geopolitical analyst writing a deeper, fact-checked version of a news summary."},
+                {"role": "system", "content": "You are a geopolitical and economic policy analyst. Expand the original summary with deeper detail and institutional context — but keep it concise and analytical. Avoid generalities, speculation, or editorializing. Do not use phrases like 'the content you provided.' The tone should be neutral and informative. Target length: ~100 words."},
                 {"role": "user", "content": f"Expand and clarify this content with more depth and any available factual context:\n\n{text}"}
             ],
             temperature=0.4,
