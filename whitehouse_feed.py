@@ -134,14 +134,17 @@ def generate_expanded_summary(text):
 def run_main():
     json_path = Path("public/summarized_feed.json")
     json_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_data = {}
     existing_posts = {}
+
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 existing_data = json.load(f)
                 existing_posts = {p["link"]: p for p in existing_data.get("posts", [])}
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ Failed to load existing JSON: {e}")
+
 
     summarized_entries = []
 
@@ -256,52 +259,12 @@ def run_main():
             print(f"❌ Recap generation failed: {e}")
             return "Recap temporarily unavailable due to processing error."
 
-    existing_data = {}
-    existing_posts = {}
-    if json_path.exists():
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                existing_data = json.load(f)
-                existing_posts = {p["link"]: p for p in existing_data.get("posts", [])}
-        except Exception as e:
-            print(f"⚠️ Failed to load existing JSON: {e}")
-            existing_data = {}
-            existing_posts = {}
 
-    last_recap_time = None
-    if "recap_time" in existing_data:
-        try:
-            last_recap_time = datetime.fromisoformat(existing_data["recap_time"])
-        except ValueError:
-            try:
-                last_recap_time = datetime.strptime(
-                    existing_data["recap_time"], "%I:%M %p UTC"
-                ).replace(
-                    year=datetime.now(timezone.utc).year,
-                    month=datetime.now(timezone.utc).month,
-                    day=datetime.now(timezone.utc).day,
-                    tzinfo=timezone.utc
-                )
-            except Exception as e:
-                print(f"⚠️ Could not parse legacy recap time: {e}")
-                last_recap_time = None
-
-    recap_age = (datetime.now(timezone.utc) - last_recap_time).total_seconds() if last_recap_time else None
-
-
-    if recap_age is not None and recap_age < 3600:
-        recap = existing_data.get("recap", "Recap recently generated.")
-        recap_time = existing_data.get("recap_time")
-        print("♻️ Reused recent recap")
-    else:
-        recap = summarize_feed_for_recap(priority_posts)
-        recap_time = datetime.now(timezone.utc).isoformat()
-        print("🧠 Generated new recap")
-
+    recap = summarize_feed_for_recap(priority_posts)
 
     output = {
         "recap": recap,
-        "recap_time": recap_time,
+        "recap_time": datetime.now(timezone.utc).strftime("%I:%M %p UTC").lstrip("0"),
         "posts": trimmed_posts
     }
 
