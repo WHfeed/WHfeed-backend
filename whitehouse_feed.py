@@ -196,9 +196,9 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": existing["timestamp"] if existing else now_iso,
-            "display_time": existing["display_time"] if existing else now_iso,
-            "raw_content": text  # so we can compare next time
+            "timestamp": existing["timestamp"] if existing and "timestamp" in existing else now_iso,
+            "display_time": existing["display_time"] if existing and "display_time" in existing else now_iso,
+            "raw_content": text
         })
 
     for url, source in rss_feeds:
