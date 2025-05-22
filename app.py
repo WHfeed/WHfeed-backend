@@ -75,3 +75,38 @@ if __name__ == "__main__":
     if port is None:
         raise RuntimeError("PORT environment variable not set.")
     app.run(host="0.0.0.0", port=int(port), debug=False)
+
+@app.route('/delete-post', methods=['POST'])
+def delete_post():
+    data = request.get_json()
+    link_to_delete = data.get("link")
+
+    if not link_to_delete:
+        return jsonify({"error": "Missing 'link' parameter"}), 400
+
+    json_path = Path("public/summarized_feed.json")
+    if not json_path.exists():
+        return jsonify({"error": "Feed file not found"}), 404
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            feed = json.load(f)
+
+        original_len = len(feed.get("posts", []))
+        feed["posts"] = [p for p in feed["posts"] if p["link"] != link_to_delete]
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(feed, f, indent=4, ensure_ascii=False)
+
+        removed = original_len - len(feed["posts"])
+        return jsonify({"status": "success", "removed": removed}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    port = os.environ.get("PORT")
+    if port is None:
+        raise RuntimeError("PORT environment variable not set.")
+    app.run(host="0.0.0.0", port=int(port), debug=False)
