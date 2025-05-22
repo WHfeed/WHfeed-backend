@@ -8,6 +8,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
+from dateutil import parser
 
 # Load environment variables
 load_dotenv()
@@ -183,7 +184,19 @@ def run_main():
         if source != "Truth Social" and not source.startswith("X -"):
             expanded = generate_expanded_summary(text)
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        if existing and "timestamp" in existing:
+            final_timestamp = existing["timestamp"]
+            final_display = existing.get("display_time", final_timestamp)
+        else:
+            if published:
+                try:
+                    final_timestamp = parser.parse(published).astimezone(timezone.utc).isoformat()
+                    final_display = final_timestamp
+                except Exception:
+                    final_timestamp = final_display = datetime.now(timezone.utc).isoformat()
+            else:
+                final_timestamp = final_display = datetime.now(timezone.utc).isoformat()
+
         summarized_entries.append({
             "title": result.get("headline", ""),
             "link": link,
@@ -194,8 +207,8 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": existing["timestamp"] if existing and "timestamp" in existing else now_iso,
-            "display_time": existing["display_time"] if existing and "display_time" in existing else now_iso,
+            "timestamp": final_timestamp,
+            "display_time": final_display,
             "raw_content": text
         })
 
