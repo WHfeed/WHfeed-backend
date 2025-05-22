@@ -194,8 +194,8 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": existing.get("timestamp", now_iso) if existing else now_iso,
-            "display_time": existing.get("display_time", now_iso) if existing else now_iso,
+            "timestamp": existing["timestamp"] if existing and "timestamp" in existing else now_iso,
+            "display_time": existing["display_time"] if existing and "display_time" in existing else now_iso,
             "raw_content": text
         })
 
