@@ -149,9 +149,12 @@ def run_main():
     summarized_entries = []
 
     def process_entry(text, link, published, source):
-        if link in existing_posts:
-            summarized_entries.append(existing_posts[link])
-            print(f"♻️ Reused cached summary for {link}")
+        existing = existing_posts.get(link)
+
+        # Skip entirely if raw text is the same → saves GPT cost + preserves timestamp
+        if existing and existing.get("raw_content") == text:
+            summarized_entries.append(existing)
+            print(f"♻️ Reused full post for {link} (no change detected)")
             return
         
         if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", text.strip()):
@@ -191,8 +194,9 @@ def run_main():
             "sentiment": result.get("sentiment", "Unknown"),
             "impact": result.get("impact", 0),
             "source": source,
-            "timestamp": now_iso,
-            "display_time": now_iso
+            "timestamp": existing["timestamp"] if existing else now_iso,
+            "display_time": existing["display_time"] if existing else now_iso,
+            "raw_content": text  # so we can compare next time
         })
 
     for url, source in rss_feeds:
