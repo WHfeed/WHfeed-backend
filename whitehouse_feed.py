@@ -152,9 +152,11 @@ def run_main():
         existing = existing_posts.get(link)
 
         # Skip entirely if raw text is the same → saves GPT cost + preserves timestamp
-        if existing and existing.get("raw_content") == text:
+        if existing and (
+            "raw_content" not in existing or existing.get("raw_content") == text
+        ):
             summarized_entries.append(existing)
-            print(f"♻️ Reused full post for {link} (no change detected)")
+            print(f"♻️ Reused full post for {link} (match by fallback or unchanged)")
             return
         
         if source != "White House" and re.match(r"\[No Title\] - Post from \w+ \d{1,2}, \d{4}", text.strip()):
