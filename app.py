@@ -72,6 +72,10 @@ def clean_feed():
 
 @app.route('/delete-post', methods=['POST'])
 def delete_post():
+    token = request.headers.get("x-auth-token")
+    if token != os.environ.get("DELETE_TOKEN"):
+        return jsonify({"error": "Unauthorized"}), 403
+
     data = request.get_json()
     link_to_delete = data.get("link")
 
@@ -97,6 +101,7 @@ def delete_post():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # ✅ Keep only one main block
 if __name__ == "__main__":
