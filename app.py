@@ -87,6 +87,7 @@ def delete_post():
         return jsonify({"error": "Feed file not found"}), 404
 
     try:
+        # Load and filter summarized feed
         with open(json_path, "r", encoding="utf-8") as f:
             feed = json.load(f)
 
@@ -97,10 +98,29 @@ def delete_post():
             json.dump(feed, f, indent=4, ensure_ascii=False)
 
         removed = original_len - len(feed["posts"])
+
+        # Append to deleted_links.json
+        deleted_links_path = Path("public/deleted_links.json")
+        try:
+            if deleted_links_path.exists():
+                with open(deleted_links_path, "r", encoding="utf-8") as f:
+                    deleted_links = json.load(f)
+            else:
+                deleted_links = []
+
+            if link_to_delete not in deleted_links:
+                deleted_links.append(link_to_delete)
+                with open(deleted_links_path, "w", encoding="utf-8") as f:
+                    json.dump(deleted_links, f, indent=2)
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to update deleted_links.json: {e}"}), 500
+
         return jsonify({"status": "success", "removed": removed}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 # ✅ Keep only one main block
