@@ -70,12 +70,6 @@ def clean_feed():
         "remaining": len(filtered_posts)
     }), 200
 
-if __name__ == "__main__":
-    port = os.environ.get("PORT")
-    if port is None:
-        raise RuntimeError("PORT environment variable not set.")
-    app.run(host="0.0.0.0", port=int(port), debug=False)
-
 @app.route('/delete-post', methods=['POST'])
 def delete_post():
     data = request.get_json()
@@ -104,7 +98,7 @@ def delete_post():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
+# ✅ Keep only one main block
 if __name__ == "__main__":
     port = os.environ.get("PORT")
     if port is None:
