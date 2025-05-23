@@ -146,11 +146,23 @@ def run_main():
         except Exception as e:
             print(f"⚠️ Failed to load existing JSON: {e}")
 
+    deleted_links_path = Path("public/deleted_links.json")
+    deleted_links = []
+    if deleted_links_path.exists():
+        try:
+            with open(deleted_links_path, "r", encoding="utf-8") as f:
+                deleted_links = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Failed to load deleted links: {e}")
 
     summarized_entries = []
 
     def process_entry(text, link, published, source):
         existing = existing_posts.get(link)
+
+        if link in deleted_links:
+            print(f"🚫 Skipping deleted post: {link}")
+            return
 
         # Skip entirely if raw text is the same → saves GPT cost + preserves timestamp
         if existing and existing.get("raw_content") == text:
