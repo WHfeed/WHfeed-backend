@@ -120,7 +120,41 @@ def delete_post():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/restore-feed', methods=['POST'])
+def restore_feed():
+    token = request.headers.get("x-auth-token")
+    if token != os.environ.get("DELETE_TOKEN"):
+        return jsonify({"error": "Unauthorized"}), 403
 
+    data = request.get_json()
+    if not isinstance(data, list):
+        return jsonify({"error": "Invalid data format: must be a JSON array"}), 400
+
+    json_path = Path("public/summarized_feed.json")
+    try:
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return jsonify({"status": "Feed restored successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to write feed: {e}"}), 500
+    
+@app.route('/backup-feed', methods=['GET'])
+def backup_feed():
+    token = request.headers.get("x-auth-token")
+    if token != os.environ.get("DELETE_TOKEN"):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    json_path = Path("public/summarized_feed.json")
+    if not json_path.exists():
+        return jsonify({"error": "Feed file not found"}), 404
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": f"Failed to read feed: {e}"}), 500
 
 
 # ✅ Keep only one main block
