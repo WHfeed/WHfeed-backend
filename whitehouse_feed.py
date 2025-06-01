@@ -253,17 +253,23 @@ def run_main():
 
     all_posts.sort(key=sort_key, reverse=True)
 
-    source_buckets = {}
-    for post in all_posts:
-        src = post["source"]
-        if src not in source_buckets:
-            source_buckets[src] = []
-        if len(source_buckets[src]) < 12:
-            source_buckets[src].append(post)
+    IS_AUTO_FETCH = len(summarized_entries) > 0
 
-    trimmed_posts = []
-    for bucket in source_buckets.values():
-        trimmed_posts.extend(bucket)
+    if IS_AUTO_FETCH:
+        source_buckets = {}
+        for post in all_posts:
+            src = post["source"]
+            if src not in source_buckets:
+                source_buckets[src] = []
+            if len(source_buckets[src]) < 12:
+                source_buckets[src].append(post)
+
+        trimmed_posts = []
+        for bucket in source_buckets.values():
+            trimmed_posts.extend(bucket)
+    else:
+        # Use everything from the restored feed
+        trimmed_posts = list(all_posts)
 
     trimmed_posts.sort(key=sort_key, reverse=True)
 
