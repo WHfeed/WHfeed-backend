@@ -141,8 +141,15 @@ def run_main():
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
-                existing_data = json.load(f)
-                existing_posts = {p["link"]: p for p in existing_data.get("posts", [])}
+                loaded = json.load(f)
+                if isinstance(loaded, list):
+                    # Legacy or direct post array (from backup)
+                    existing_posts = {p["link"]: p for p in loaded}
+                elif isinstance(loaded, dict):
+                    existing_posts = {p["link"]: p for p in loaded.get("posts", [])}
+                else:
+                    print("⚠️ Unexpected JSON format. Skipping reuse.")
+                    existing_posts = {}
         except Exception as e:
             print(f"⚠️ Failed to load existing JSON: {e}")
 
