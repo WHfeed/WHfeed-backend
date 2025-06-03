@@ -13,6 +13,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Restore Reddit post cache
+        uses: actions/cache@v4
+        with:
+          path: posted_reddit_links.json
+          key: reddit-cache-${{ github.run_id }}
+          restore-keys: reddit-cache-
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
